@@ -4,6 +4,7 @@ import { W, H } from './engine.js';
 import { hitFX } from './utils.js';
 import { defeatBoss } from './combat.js';
 import { onPlayerDealDamage, onEnemyKilled, getTechBonus } from './techniques.js';
+import { rollLoot } from './loot.js';
 
 export function initOrbitSwords() {
     const target = Math.max(0, Math.min(18, Math.floor(game.swCnt / 4)));
@@ -49,7 +50,7 @@ export function updateOrbitSwords(dt) {
                 if (!e.alive) continue;
                 if (Math.hypot(sw.x - e.x, sw.y - e.y) < e.size + 6) {
                     e.hp -= 15; hitFX({ x: e.x, y: e.y }); onPlayerDealDamage(15);
-                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else { e.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); onEnemyKilled(); } }
+                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else { e.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); rollLoot(e.type, e.x, e.y); onEnemyKilled(); } }
                     hit = true; break;
                 }
             }
@@ -64,7 +65,7 @@ export function updateOrbitSwords(dt) {
             const dist = Math.hypot(dx, dy);
             if (dist < r + 8) {
                 sw.state = 'orbit';
-                sw.angle = Math.atan2(dy, dx);
+                sw.angle = getOrbitGapAngle(Math.atan2(dy, dx));
             } else {
                 const spd = 300;
                 sw.x += dx / dist * spd * dt;
@@ -74,12 +75,29 @@ export function updateOrbitSwords(dt) {
                 if (!e.alive) continue;
                 if (Math.hypot(sw.x - e.x, sw.y - e.y) < e.size + 6) {
                     e.hp -= 15; hitFX({ x: e.x, y: e.y }); onPlayerDealDamage(15);
-                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else { e.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); onEnemyKilled(); } }
+                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else { e.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); rollLoot(e.type, e.x, e.y); onEnemyKilled(); } }
                     break;
                 }
             }
         }
     }
+}
+
+function getOrbitGapAngle(inAngle) {
+    const minGap = 0.3;
+    let a = inAngle;
+    for (let iter = 0; iter < 30; iter++) {
+        let clash = false;
+        for (const sw of game.orbitSwords) {
+            if (sw.state !== 'orbit' || sw.angle === a) continue;
+            let diff = Math.abs(a - sw.angle);
+            if (diff > Math.PI) diff = Math.PI * 2 - diff;
+            if (diff < minGap) { clash = true; break; }
+        }
+        if (!clash) return a;
+        a += 0.4;
+    }
+    return a;
 }
 
 export function castSkill(skillId) {
@@ -119,7 +137,13 @@ export function castSkill(skillId) {
         return true;
     }
     if (skillId === 'greatSword') {
-        game.greatSwordT = 20;
+        game.bullets.push({
+            x: game.HL.x + Math.cos(game.HL.fA) * 24,
+            y: game.HL.y + Math.sin(game.HL.fA) * 24,
+            vx: Math.cos(game.HL.fA) * 250,
+            vy: Math.sin(game.HL.fA) * 250,
+            life: 3.5, type: 'greatSword', dmg: 60, growT: 0, maxGrow: 0.35
+        });
         return true;
     }
     return false;
@@ -131,5 +155,4 @@ export function updateSkillTimers(dt) {
         if (game.skillCDs[k] <= 0) delete game.skillCDs[k];
     }
     game.shieldT = Math.max(0, game.shieldT - dt);
-    game.greatSwordT = Math.max(0, game.greatSwordT - dt);
 }

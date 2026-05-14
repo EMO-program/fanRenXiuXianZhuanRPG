@@ -1,8 +1,15 @@
-﻿import { STAGES, HERBS, HLIST, rsName, EQUIPMENT, EQUIP_SLOTS, ITEMS, SHOP_ITEMS, TRIBULATION, DIFFICULTIES, TECHNIQUES, EVENTS } from './config.js';
+﻿import { STAGES, HERBS, HLIST, rsName, EQUIPMENT, EQUIP_SLOTS, ITEMS, SHOP_ITEMS, TRIBULATION, DIFFICULTIES, TECHNIQUES, EVENTS, WORLD_MAP, KEY_ITEMS, REALMS, BREAKTHROUGH } from './config.js';
 import { game } from './state.js';
 import { G, W, H, S as SC, TB } from './engine.js';
 import { pix, ln, cir, cs, maxHP, maxMana, atkBase } from './utils.js';
 import { getAllSlots } from './save.js';
+import { getBossList } from './main.js';
+
+function getMapNode(nodes, path) { let cur = null; for (const idx of path) { const list = cur ? cur.children : nodes; if (!list || idx >= list.length) return null; cur = list[idx]; } return cur; }
+function getCurrentChildren() { if (game.mapLevel === 0) return WORLD_MAP; const n = getMapNode(WORLD_MAP, game.mapSel.slice(0, game.mapLevel)); return n ? (n.children || []) : []; }
+function getMapList(children) { return children || []; }
+function isMapUnlocked(node) { if (!node) return false; const u = node.unlock; if (!u) return true; const ri = ['炼气','筑基','结丹','元婴','化神'].indexOf(game.CL.realm); if (u.realm) { const reqIdx = ['炼气','筑基','结丹','元婴','化神'].indexOf(u.realm); if (ri < reqIdx) return false; if (u.realmStage && ri === reqIdx && game.CL.stage < u.realmStage) return false; } if (u.clear && !u.clear.every(id => (game.clearedStages || []).includes(id))) return false; if (u.items && !u.items.every(it => (game.inventory[it] || 0) > 0)) return false; return true; }
+function getHint(node) { if (!node || !node.unlock) return ''; const p = []; const u = node.unlock; const S3 = ['初期','中期','后期']; if (u.realm) { let st = ''; if (u.realmStage) st = u.realm === '炼气' ? u.realmStage + '层' : S3[Math.min(u.realmStage - 1, 2)]; p.push('境界≥' + u.realm + '·' + st); } if (u.clear) p.push('前置：'+u.clear.map(id => { const s = STAGES.find(st=>st.id===id); return s?s.name:id; }).join(' ')); if (u.items) p.push('需：'+u.items.join(' + ')); return p.join(' | '); }
 
 // ===== 角色绘制 =====
 export function drawHL(px, py) {
@@ -70,55 +77,47 @@ function dBody(cx, cy, w, h) {
 }
 function dArmed(cx, sX, cy, aW, sw, aim, ext, on) {
     const sk = '#f5c6a0', sl = '#2d7d6f';
-    const gs = game.greatSwordT > 0 ? 3 : 1;
-    const gsOff = game.greatSwordT > 0 ? Math.round(3 * SC) : 0;
     const eY = cy + Math.round(3 * SC) + sw;
     pix(sX - Math.round(1 * SC), cy + sw, aW, Math.round(3 * SC), sl);
     if (!on) {
         const al = Math.round(10 * SC) + ext * Math.round(6 * SC);
         const hx = sX + Math.cos(aim) * al, hy = eY - Math.round(2 * SC) + Math.sin(aim) * al;
-        const perpX = -Math.sin(aim) * gsOff, perpY = Math.cos(aim) * gsOff;
-        const sxX = hx + perpX, sxY = hy + perpY;
         ln(sX, cy + Math.round(3 * SC) + sw, hx, hy, sk, 3 * SC);
         cir(hx, hy, Math.round(2 * SC), sk);
-        drawSwrd(sxX, sxY, aim, ext);
+        drawSwrd(hx, hy, aim, ext);
         return;
     }
     const swA = game.HL.anim.swL, sD = game.HL.anim.swS;
     const deg = sD + swA * ext, rad = deg * Math.PI / 180;
     const hl = Math.round(16 * SC);
     const hx = sX + Math.cos(rad) * hl, hy = cy + Math.sin(rad) * hl - Math.round(2 * SC);
-    const perpX = -Math.sin(rad) * gsOff, perpY = Math.cos(rad) * gsOff;
-    const sxX = hx + perpX, sxY = hy + perpY;
     ln(sX, cy + Math.round(3 * SC) + sw, hx, hy, sk, 3 * SC);
     cir(hx, hy, Math.round(2 * SC), sk);
-    drawSwrd(sxX, sxY, rad, ext);
+    drawSwrd(hx, hy, rad, ext);
 }
 function drawSwrd(x, y, an, ext) {
-    const gs = game.greatSwordT > 0 ? 3 : 1;
     const ca = Math.cos(an), sa = Math.sin(an);
     const pa = -sa, pb = ca;
-    const gripL = Math.round(5 * SC) * gs;
-    const guardHW = Math.round(2.5 * SC) * gs;
-    const bladeL = Math.round(14 * SC) * gs;
-    const tipL = Math.round(3 * SC) * gs;
-    const sw = Math.round(SC) * gs;
+    const gripL = Math.round(5 * SC);
+    const guardHW = Math.round(2.5 * SC);
+    const bladeL = Math.round(14 * SC);
+    const tipL = Math.round(3 * SC);
+    const sw = Math.round(SC);
     // grip center at (x,y), grip extends from center backwards
     const gTop = y - gripL / 2;
-    pix(x - Math.round(1.5 * SC) * gs, gTop, Math.round(3 * SC) * gs, gripL, '#2a5a2a');
+    pix(x - Math.round(1.5 * SC), gTop, Math.round(3 * SC), gripL, '#2a5a2a');
     // guard at (x,y)
-    ln(x - pa * guardHW, y - pb * guardHW, x + pa * guardHW, y + pb * guardHW, '#50c060', 2.5 * gs);
+    ln(x - pa * guardHW, y - pb * guardHW, x + pa * guardHW, y + pb * guardHW, '#50c060', 2.5);
     // blade extends forward from guard
-    const bStart = Math.round(SC) * gs;
+    const bStart = Math.round(SC);
     const bx = x + ca * bStart, by = y + sa * bStart;
     const bEnd = bx + ca * bladeL, bEndY = by + sa * bladeL;
-    const bW = Math.round(SC * 1.8) * gs;
-    ln(bx - pa * Math.round(SC * 0.8) * gs, by - pb * Math.round(SC * 0.8) * gs, bEnd + ca * tipL, bEndY + sa * tipL, '#40c060', bW);
-    ln(bx + pa * Math.round(SC * 0.8) * gs, by + pb * Math.round(SC * 0.8) * gs, bEnd + ca * tipL, bEndY + sa * tipL, '#40c060', bW);
-    ln(bx, by, bEnd + ca * tipL, bEndY + sa * tipL, '#80ff80', 0.8 * gs);
-    const tpX = bEnd + ca * (tipL + Math.round(SC * 0.5) * gs), tpY = bEndY + sa * (tipL + Math.round(SC * 0.5) * gs);
-    if (ext > 0.3) { const fx = tpX + ca * Math.round(4 * SC) * gs, fy = tpY + sa * Math.round(4 * SC) * gs; G.circle('line', 'rgba(64,255,64,0.5)', [fx, fy], Math.round(3 * SC) * ext * gs, { lineWidth: 1.5 }); }
-    if (game.greatSwordT > 0) { G.circle('line', 'rgba(255,128,64,0.35)', [x, y], Math.round(22 * SC), { lineWidth: 1 }); }
+    const bW = Math.round(SC * 1.8);
+    ln(bx - pa * Math.round(SC * 0.8), by - pb * Math.round(SC * 0.8), bEnd + ca * tipL, bEndY + sa * tipL, '#40c060', bW);
+    ln(bx + pa * Math.round(SC * 0.8), by + pb * Math.round(SC * 0.8), bEnd + ca * tipL, bEndY + sa * tipL, '#40c060', bW);
+    ln(bx, by, bEnd + ca * tipL, bEndY + sa * tipL, '#80ff80', 0.8);
+    const tpX = bEnd + ca * (tipL + Math.round(SC * 0.5)), tpY = bEndY + sa * (tipL + Math.round(SC * 0.5));
+    if (ext > 0.3) { const fx = tpX + ca * Math.round(4 * SC), fy = tpY + sa * Math.round(4 * SC); G.circle('line', 'rgba(64,255,64,0.5)', [fx, fy], Math.round(3 * SC) * ext, { lineWidth: 1.5 }); }
 }
 
 // ===== 盘旋飞剑 =====
@@ -172,20 +171,56 @@ function drawBoss(bs) {
         drawGoldDragon(bs);
         return;
     }
-    if (bs.name === '万天明') {
-        drawWanTianming(bs);
+    if (bs.name.includes('王婵')) {
+        drawWangChan(bs);
         return;
     }
-    if (bs.name === '元刹圣祖') {
-        drawYuanSha(bs);
+    if (bs.name === '玄骨上人') {
+        drawXuanGu(bs);
         return;
     }
-    if (bs.name === '呼老魔') {
-        drawHuLaoMo(bs);
+    if (bs.name.includes('极阴')) {
+        drawJiYin(bs);
+        return;
+    }
+    if (bs.name.includes('风希')) {
+        drawFengXi(bs);
+        return;
+    }
+    if (bs.name.includes('幕兰')) {
+        drawMuLan(bs);
+        return;
+    }
+    if (bs.name.includes('天澜')) {
+        drawTianLan(bs);
+        return;
+    }
+    if (bs.name.includes('阴罗')) {
+        drawYinLuo(bs);
+        return;
+    }
+    if (bs.name.includes('冰凤')) {
+        drawIcePhoenix(bs);
         return;
     }
     if (bs.name === '元刹圣祖分魂') {
         drawYuanShaSplit(bs);
+        return;
+    }
+    if (bs.name.includes('古修')) {
+        drawGuXiu(bs);
+        return;
+    }
+    if (bs.name.includes('天星双圣')) {
+        drawTianXingShuangSheng(bs);
+        return;
+    }
+    if (bs.name === '金蛟王') {
+        drawJinJiaoWang(bs);
+        return;
+    }
+    if (bs.name.includes('寒骊')) {
+        drawHanLiShangRen(bs);
         return;
     }
     // default boss
@@ -198,55 +233,351 @@ function drawBoss(bs) {
     G.print('#ff0', bs.name, [bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 1)], { font: '10px monospace' });
 }
 
-// ===== 墨大夫·莫居仁（完整人物） =====
+// ===== 墨大夫·莫居仁（执杖毒师） =====
 function drawMoDaifu(bs) {
-    const cx = Math.round(bs.x), cy = Math.round(bs.y);
-    const hW = Math.round(8 * SC), hH = Math.round(8 * SC), bW = Math.round(9 * SC), bH = Math.round(10 * SC);
-    const lW = Math.round(4 * SC), lH = Math.round(6 * SC);
-    const ftY = cy + Math.round(10 * SC), lgY = ftY - lH, bdY = lgY - bH + Math.round(1 * SC);
-    const hdY = bdY - hH + Math.round(2 * SC);
-    const d = 1;
-    cir(cx, ftY, Math.round(10 * SC), 'rgba(0,0,0,0.2)');
-    dLeg(cx - Math.round(4 * SC), lgY, lW, lH, 0, d);
-    dLeg(cx + Math.round(4 * SC), lgY, lW, lH, 0, d);
-    pix(cx - Math.round(4.5 * SC), bdY, bW, bH, '#3a4a2a');
-    // head - old man with gray hair
-    pix(cx - Math.round(4 * SC), hdY, hW, hH, '#dcc0a0');
-    pix(cx - Math.round(4.5 * SC), hdY - Math.round(1 * SC), Math.round(9 * SC), Math.round(2 * SC), '#aaa');
-    // goatee beard
-    pix(cx - Math.round(1 * SC), hdY + hH - Math.round(1 * SC), Math.round(2 * SC), Math.round(3 * SC), '#888');
-    // cold piercing eyes
-    pix(cx - Math.round(3 * SC), hdY + Math.round(3 * SC), Math.round(1.5 * SC), Math.round(1 * SC), '#fff');
-    pix(cx + Math.round(1.5 * SC), hdY + Math.round(3 * SC), Math.round(1.5 * SC), Math.round(1 * SC), '#fff');
-    pix(cx - Math.round(2.5 * SC), hdY + Math.round(3.5 * SC), Math.round(1 * SC), Math.round(0.8 * SC), '#111');
-    pix(cx + Math.round(2 * SC), hdY + Math.round(3.5 * SC), Math.round(1 * SC), Math.round(0.8 * SC), '#111');
-    // eyebrows - slanted down, sinister
-    pix(cx - Math.round(3.5 * SC), hdY + Math.round(1.5 * SC), Math.round(2.5 * SC), Math.round(0.8 * SC), '#444');
-    pix(cx + Math.round(1.5 * SC), hdY + Math.round(1.5 * SC), Math.round(2.5 * SC), Math.round(0.8 * SC), '#444');
-    // mouth - thin cruel line
-    pix(cx - Math.round(1.5 * SC), hdY + Math.round(5.5 * SC), Math.round(3 * SC), Math.round(0.5 * SC), '#733');
+    _bossBase(bs, '#3a4a2a', '#dcc0a0', '#aaa', '#111', { beard:'goatee', weapon:'staff', robeDeco:'#2a3a1a' });
+}
+
+// ===== 墨蛟（黑鳞蛟龙，血目巨口） =====
+function drawMoDragon(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y), g = bs.size / 15;
+    const scl = g * SC;
+    // serpent body
+    pix(cx - Math.round(6 * scl), cy - Math.round(4 * scl), Math.round(12 * scl), Math.round(10 * scl), '#1a1010');
+    for (let i = 0; i < 6; i++) {
+        const sx = cx - Math.round(5 * scl) + i * Math.round(2 * scl);
+        pix(sx, cy - Math.round(2 * scl), Math.round(1.5 * scl), Math.round(8 * scl), '#2a1818');
+    }
+    // head
+    pix(cx + Math.round(5 * scl), cy - Math.round(6 * scl), Math.round(8 * scl), Math.round(8 * scl), '#2a1818');
+    // upper jaw
+    pix(cx + Math.round(11 * scl), cy - Math.round(4 * scl), Math.round(5 * scl), Math.round(2 * scl), '#3a2020');
+    // lower jaw
+    pix(cx + Math.round(10 * scl), cy + Math.round(1 * scl), Math.round(4 * scl), Math.round(1.5 * scl), '#3a2020');
+    // blood-red eyes
+    pix(cx + Math.round(8 * scl), cy - Math.round(5 * scl), Math.round(2.5 * scl), Math.round(2.5 * scl), '#f00');
+    pix(cx + Math.round(8.5 * scl), cy - Math.round(4.5 * scl), Math.round(1 * scl), Math.round(1 * scl), '#600');
+    // teeth
+    for (let i = 0; i < 3; i++) {
+        pix(cx + Math.round((12 + i * 1.5) * scl), cy - Math.round(4 * scl), Math.round(0.8 * scl), Math.round(1.5 * scl), '#ddd');
+    }
+    // tail (tapering)
+    for (let i = 0; i < 5; i++) {
+        const tx = cx - Math.round((8 + i * 3) * scl);
+        const tw = Math.round((4 - i * 0.7) * scl);
+        pix(tx, cy + Math.round(2 * scl), tw, Math.round(2 * scl), '#1a1010');
+    }
+    G.circle('line', 'rgba(80,40,40,0.25)', [cx, cy], Math.round(bs.size * 0.8), { lineWidth: 2 });
+    const hpP = bs.hp / bs.maxHp;
+    pix(bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 0.9), Math.round(bs.size), Math.round(2 * SC), '#300');
+    pix(bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 0.9), Math.round(bs.size * hpP), Math.round(2 * SC), '#f00');
+    G.print('#ff0', bs.name, [bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 1.2)], { font: '10px monospace' });
+}
+
+function _bossBase(bs, robeCl, skinCl, hairCl, eyeGlow, feat) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y), g = bs.size / 18;
+    const scl = SC * g;
+    const hW = Math.round(8 * scl), hH = Math.round(8 * scl);
+    const bW = Math.round(9 * scl), bH = Math.round(10 * scl);
+    const lW = Math.round(4 * scl), lH = Math.round(6 * scl);
+    const ftY = cy + Math.round(10 * scl), lgY = ftY - lH, bdY = lgY - bH + Math.round(1 * scl);
+    const hdY = bdY - hH + Math.round(2 * scl);
+    const f = feat || {};
+    cir(cx, ftY, Math.round(10 * scl), 'rgba(0,0,0,0.2)');
+    dLeg(cx - Math.round(4 * scl), lgY, lW, lH, 0, 1);
+    dLeg(cx + Math.round(4 * scl), lgY, lW, lH, 0, 1);
+    // weapon pre-attack
+    if (f.weapon && (bs.atkT || 0) <= 0) _drawBossWeapon(cx, cy, bdY, bs, f, robeCl);
+    // attack arm
+    if ((bs.atkT || 0) > 0) {
+        const aimA = Math.atan2(game.HL.y - cy, game.HL.x - cx);
+        const sx = cx + Math.cos(aimA) * Math.round(4 * scl);
+        const sy = bdY + Math.round(3 * scl) + Math.sin(aimA) * Math.round(1 * scl);
+        const ax = sx + Math.cos(aimA) * bs.size * 1.5, ay = sy + Math.sin(aimA) * bs.size * 1.5;
+        ln(sx, sy, ax, ay, robeCl, Math.round(2 * scl));
+        if (f.weapon) _drawBossWeapon(ax, ay, bdY, bs, f, robeCl);
+    }
+    pix(cx - Math.round(4.5 * scl), bdY, bW, bH, robeCl);
+    // robe decoration
+    if (f.robeDeco) pix(cx - Math.round(1.5 * scl), bdY + Math.round(2 * scl), Math.round(3 * scl), Math.round(1.5 * scl), f.robeDeco);
+    // head
+    pix(cx - Math.round(4 * scl), hdY, hW, hH, skinCl);
+    // hair
+    if (f.hairStyle === 'long') {
+        pix(cx - Math.round(4.5 * scl), hdY - Math.round(1 * scl), Math.round(9 * scl), Math.round(2 * scl), hairCl);
+        pix(cx - Math.round(3.5 * scl), hdY + hH, Math.round(3 * scl), Math.round(3 * scl), hairCl);
+    } else if (f.hairStyle === 'topknot') {
+        pix(cx - Math.round(4.5 * scl), hdY - Math.round(1 * scl), Math.round(9 * scl), Math.round(2 * scl), hairCl);
+        pix(cx - Math.round(0.5 * scl), hdY - Math.round(3 * scl), Math.round(2 * scl), Math.round(3 * scl), hairCl);
+    } else if (f.hairStyle === 'bald') {
+    } else {
+        pix(cx - Math.round(4.5 * scl), hdY - Math.round(1 * scl), Math.round(9 * scl), Math.round(2 * scl), hairCl);
+    }
+    // beard
+    if (f.beard === 'goatee') pix(cx - Math.round(1 * scl), hdY + hH - Math.round(1 * scl), Math.round(2 * scl), Math.round(3 * scl), '#888');
+    else if (f.beard === 'full') pix(cx - Math.round(3 * scl), hdY + hH, Math.round(6 * scl), Math.round(3 * scl), hairCl);
+    // horns
+    if (f.horns) {
+        ln(cx - Math.round(2 * scl), hdY, cx - Math.round(3 * scl), hdY - Math.round(4 * scl), '#604040', Math.round(1.2 * scl));
+        ln(cx + Math.round(2 * scl), hdY, cx + Math.round(3 * scl), hdY - Math.round(4 * scl), '#604040', Math.round(1.2 * scl));
+    }
+    // eyes
+    pix(cx - Math.round(3 * scl), hdY + Math.round(3 * scl), Math.round(1.5 * scl), Math.round(1 * scl), '#fff');
+    pix(cx + Math.round(1.5 * scl), hdY + Math.round(3 * scl), Math.round(1.5 * scl), Math.round(1 * scl), '#fff');
+    pix(cx - Math.round(2.5 * scl), hdY + Math.round(3.5 * scl), Math.round(1 * scl), Math.round(0.8 * scl), eyeGlow);
+    pix(cx + Math.round(2 * scl), hdY + Math.round(3.5 * scl), Math.round(1 * scl), Math.round(0.8 * scl), eyeGlow);
+    // eyebrows
+    pix(cx - Math.round(3.5 * scl), hdY + Math.round(1.5 * scl), Math.round(2.5 * scl), Math.round(0.8 * scl), hairCl);
+    pix(cx + Math.round(1.5 * scl), hdY + Math.round(1.5 * scl), Math.round(2.5 * scl), Math.round(0.8 * scl), hairCl);
+    // scar
+    if (f.scar) pix(cx - Math.round(3 * scl), hdY + Math.round(2 * scl), Math.round(0.5 * scl), Math.round(3 * scl), '#844');
+    // mouth
+    const mouthCl = f.lips || '#733';
+    pix(cx - Math.round(1.5 * scl), hdY + Math.round(5.5 * scl), Math.round(3 * scl), Math.round(0.5 * scl), mouthCl);
     const hpP = bs.hp / bs.maxHp;
     pix(bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 0.8), Math.round(bs.size), Math.round(2 * SC), '#300');
     pix(bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 0.8), Math.round(bs.size * hpP), Math.round(2 * SC), '#f00');
     G.print('#ff0', bs.name, [bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 1)], { font: '10px monospace' });
 }
 
-// ===== 墨蛟（蛟龙） =====
-function drawMoDragon(bs) {
-    const s = bs.size;
-    cir(bs.x, bs.y, s, '#2a1a1a'); G.circle('line', '#4a2a2a', [bs.x, bs.y], s, { lineWidth: 3 });
-    pix(bs.x - Math.round(s * 0.3), bs.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#f00');
-    pix(bs.x + Math.round(s * 0.1), bs.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#f00');
-    G.circle('line', '#5a4040', [bs.x, bs.y], s + 3, { lineWidth: 1.5 });
-    const hpP = bs.hp / bs.maxHp;
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s), Math.round(2 * SC), '#300');
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s * hpP), Math.round(2 * SC), '#f00');
-    G.print('#ff0', bs.name, [bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 1)], { font: '10px monospace' });
+function _drawBossWeapon(x, y, bdY, bs, feat, robeCl) {
+    const sx = SC * (bs.size / 18);
+    const wp = feat.weapon;
+    if (wp === 'staff') {
+        ln(x, y, x, y - Math.round(14 * sx), '#8B6914', Math.round(1.5 * sx));
+        cir(x, y - Math.round(15 * sx), Math.round(2 * sx), '#d4af37');
+    } else if (wp === 'sword') {
+        ln(x + Math.round(2 * sx), y, x + Math.round(2 * sx), y - Math.round(12 * sx), '#c0c0d0', Math.round(1.2 * sx));
+        ln(x - Math.round(1 * sx), y - Math.round(2 * sx), x + Math.round(5 * sx), y - Math.round(2 * sx), '#d4af37', Math.round(1 * sx));
+    } else if (wp === 'flyswatter') {
+        ln(x - Math.round(2 * sx), y, x - Math.round(2 * sx), y - Math.round(10 * sx), '#8a6a3a', Math.round(1 * sx));
+        pix(x - Math.round(4 * sx), y - Math.round(13 * sx), Math.round(4 * sx), Math.round(4 * sx), '#e0e0e0');
+    } else if (wp === 'fan') {
+        for (let i = 0; i < 5; i++) {
+            const fAng = -0.6 + i * 0.3;
+            const fl = Math.round(6 * sx);
+            ln(x, y, x + Math.cos(fAng) * fl, y - Math.sin(fAng) * fl * 0.4, '#f0e0c0', Math.round(0.7 * sx));
+        }
+    } else if (wp === 'disk') {
+        G.circle('line', '#ffd700', [x, y], Math.round(6 * sx), { lineWidth: 1.5 });
+        G.circle('line', '#fff', [x, y], Math.round(2 * sx), { lineWidth: 1 });
+    } else if (wp === 'iceCrystal') {
+        for (let i = 0; i < 6; i++) {
+            const ca = i * Math.PI / 3;
+            ln(x, y, x + Math.cos(ca) * Math.round(5 * sx), y + Math.sin(ca) * Math.round(5 * sx), '#80d0ff', 1);
+        }
+        cir(x, y, Math.round(2 * sx), '#c0e8ff');
+    } else if (wp === 'daggers') {
+        for (let side = -1; side <= 1; side += 2) {
+            ln(x + side * Math.round(3 * sx), y, x + side * Math.round(3 * sx), y - Math.round(8 * sx), '#a0a0b0', Math.round(0.8 * sx));
+        }
+    } else if (wp === 'banner') {
+        ln(x, y, x, y - Math.round(12 * sx), '#4a3020', Math.round(1 * sx));
+        pix(x - Math.round(3 * sx), y - Math.round(16 * sx), Math.round(6 * sx), Math.round(5 * sx), '#c04040');
+    }
 }
 
-// ===== 金蛟 =====
+// ===== 王婵·鬼灵门少主（黑衣青年，佩剑，鬼气缭绕） =====
+function drawWangChan(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#1a1a2a', '#c0b0a0', '#202030', '#a040c0', { weapon:'sword', robeDeco:'#6040c0' });
+    G.circle('line', 'rgba(100,60,200,0.3)', [cx, cy], Math.round(bs.size * 0.7), { lineWidth: 1.5 });
+    G.circle('line', 'rgba(100,60,200,0.12)', [cx, cy], Math.round(bs.size * 1.0), { lineWidth: 1 });
+}
+
+// ===== 玄骨上人（道袍浮尘，金光环绕） =====
+function drawXuanGu(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#3a3a2a', '#e8d8b0', '#aaa8a0', '#d4af37', { beard:'goatee', weapon:'flyswatter', robeDeco:'#d4af37' });
+    G.circle('line', 'rgba(212,175,55,0.3)', [cx, cy], Math.round(bs.size * 0.7), { lineWidth: 2 });
+}
+
+// ===== 极阴老祖（黑袍长须双角魔头） =====
+function drawJiYin(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#0a0a0a', '#a09890', '#202020', '#8040c0', { beard:'full', hairStyle:'long', horns:true, weapon:'staff', lips:'#606', robeDeco:'#8040c0' });
+    G.circle('line', 'rgba(128,64,192,0.25)', [cx, cy], Math.round(bs.size * 0.8), { lineWidth: 2 });
+}
+
+// ===== 风希·羽族之王（白袍银发执扇背翼） =====
+function drawFengXi(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#e8e8f0', '#f0e8d8', '#d0d0e8', '#40e0d0', { weapon:'fan', hairStyle:'long', robeDeco:'#80e0e0' });
+    const scl = SC * (bs.size / 18);
+    const wx = Math.round(16 * scl), wy = Math.round(14 * scl);
+    for (let side = -1; side <= 1; side += 2) {
+        const wcx = cx + side * Math.round(6 * scl), wcy = cy - Math.round(2 * scl);
+        for (let i = 0; i < 4; i++) {
+            const len = Math.round((5 + i * 2) * scl);
+            const ang = side > 0 ? -0.6 + i * 0.25 : Math.PI + 0.6 - i * 0.25;
+            const ex = wcx + Math.cos(ang) * len, ey = wcy - Math.sin(ang) * (len * 0.6);
+            ln(wcx, wcy, ex, ey, '#a0e0f0', Math.round((2.5 - i * 0.4) * scl));
+        }
+    }
+    G.circle('line', 'rgba(64,224,208,0.2)', [cx, cy], Math.round(bs.size * 0.8), { lineWidth: 1.5 });
+}
+
+// ===== 幕兰大法师（棕袍发髻，持杖） =====
+function drawMuLan(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#5a4a2a', '#d0b890', '#604030', '#f0a040', { hairStyle:'topknot', weapon:'staff', robeDeco:'#8a6a3a' });
+    G.circle('line', 'rgba(240,160,64,0.2)', [cx, cy], Math.round(bs.size * 0.7), { lineWidth: 1.5 });
+}
+// ===== 天澜圣女（绿裳长髪，执扇） =====
+function drawTianLan(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#3a5a3a', '#f0e8d0', '#80a060', '#80ff80', { hairStyle:'long', weapon:'fan', robeDeco:'#60c060' });
+    G.circle('line', 'rgba(128,255,128,0.25)', [cx, cy], Math.round(bs.size * 0.7), { lineWidth: 2 });
+}
+
+// ===== 阴罗宗宗主（紫袍长髪，双匕魔气） =====
+function drawYinLuo(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#2a0a2a', '#c0a0c0', '#301030', '#c040c0', { weapon:'daggers', robeDeco:'#c040c0', hairStyle:'long' });
+    G.circle('line', 'rgba(192,64,192,0.3)', [cx, cy], Math.round(bs.size * 0.8), { lineWidth: 2 });
+    G.circle('line', 'rgba(192,64,192,0.1)', [cx, cy], Math.round(bs.size * 1.1), { lineWidth: 1 });
+}
+
+// ===== 冰凤（冰蓝凤凰，展开双翼） =====
+function drawIcePhoenix(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y), g = bs.size / 15;
+    const scl = g * SC;
+    // body
+    pix(cx - Math.round(5 * scl), cy - Math.round(2 * scl), Math.round(10 * scl), Math.round(10 * scl), '#60a0d0');
+    // head
+    pix(cx - Math.round(3 * scl), cy - Math.round(8 * scl), Math.round(6 * scl), Math.round(6 * scl), '#80c0f0');
+    pix(cx - Math.round(1.5 * scl), cy - Math.round(7 * scl), Math.round(1.5 * scl), Math.round(1.5 * scl), '#fff');
+    pix(cx + Math.round(0.5 * scl), cy - Math.round(7 * scl), Math.round(0.8 * scl), Math.round(0.8 * scl), '#104');
+    // beak
+    pix(cx + Math.round(2 * scl), cy - Math.round(5.5 * scl), Math.round(3 * scl), Math.round(1.2 * scl), '#f0d040');
+    // wings
+    for (let side = -1; side <= 1; side += 2) {
+        const wcx = cx + side * Math.round(2 * scl), wcy = cy - Math.round(3 * scl);
+        for (let i = 0; i < 5; i++) {
+            const len = Math.round((8 + i * 3) * scl);
+            const ang = side > 0 ? -0.5 + i * 0.3 : Math.PI + 0.5 - i * 0.3;
+            const ex = wcx + Math.cos(ang) * len, ey = wcy - Math.sin(ang) * (len * 0.5);
+            ln(wcx, wcy, ex, ey, ['#80c0f0','#90d0ff','#a0e0ff','#b0e8ff','#c0f0ff'][i], Math.round((3 - i * 0.3) * scl));
+        }
+    }
+    // tail feathers
+    for (let i = 0; i < 4; i++) {
+        const ang = Math.PI / 2 + (i - 1.5) * 0.25;
+        const len = Math.round((7 + i * 2) * scl);
+        const tx = cx + Math.cos(ang) * len, ty = cy + Math.round(6 * scl) + Math.sin(ang) * len * 0.4;
+        ln(cx, cy + Math.round(4 * scl), tx, ty, '#80c0e0', Math.round((2.5 - i * 0.3) * scl));
+    }
+    // legs
+    dLeg(cx - Math.round(3 * scl), cy + Math.round(4 * scl), Math.round(2 * scl), Math.round(5 * scl), 0, 1);
+    dLeg(cx + Math.round(3 * scl), cy + Math.round(4 * scl), Math.round(2 * scl), Math.round(5 * scl), 0, 1);
+    G.circle('line', 'rgba(128,192,255,0.25)', [cx, cy], Math.round(bs.size * 0.7), { lineWidth: 2 });
+    const hpP = bs.hp / bs.maxHp;
+    pix(bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 0.8), Math.round(bs.size), Math.round(2 * SC), '#300');
+    pix(bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 0.8), Math.round(bs.size * hpP), Math.round(2 * SC), '#f00');
+    G.print('#ff0', bs.name, [bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 1)], { font: '10px monospace' });
+}
+
+// ===== 古修残魂（半透明蓝魂，飘忽不定） =====
+function drawGuXiu(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, 'rgba(40,60,80,0.65)', 'rgba(100,150,200,0.5)', 'rgba(60,80,120,0.4)', '#60b0ff', { weapon:'sword', hairStyle:'long' });
+    G.circle('line', 'rgba(96,160,255,0.15)', [cx, cy], Math.round(bs.size * 0.9), { lineWidth: 1.5 });
+}
+
+// ===== 天星双圣（紫袍金冠双子，星芒流转） =====
+function drawTianXingShuangSheng(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y), g = bs.size / 18;
+    // left saint (purple)
+    const lx = Math.round(cx - bs.size * 0.35);
+    _drawHalfHuman(lx, cy, g, '#3a3a5a', '#e0c0e8', '#6060a0', '#c0a0ff');
+    G.circle('line', 'rgba(192,160,255,0.2)', [lx, cy], Math.round(bs.size * 0.45), { lineWidth: 1.5 });
+    // right saint (gold)
+    const rx = Math.round(cx + bs.size * 0.35);
+    _drawHalfHuman(rx, cy, g, '#5a5a2a', '#f0e0c0', '#a08030', '#ffd700');
+    G.circle('line', 'rgba(255,215,0,0.2)', [rx, cy], Math.round(bs.size * 0.45), { lineWidth: 1.5 });
+    const hpP = bs.hp / bs.maxHp;
+    pix(bs.x - Math.round(bs.size * 0.6), bs.y - Math.round(bs.size * 0.9), Math.round(bs.size * 1.2), Math.round(2 * SC), '#300');
+    pix(bs.x - Math.round(bs.size * 0.6), bs.y - Math.round(bs.size * 0.9), Math.round(bs.size * 1.2 * hpP), Math.round(2 * SC), '#f00');
+    G.print('#ff0', bs.name, [bs.x - Math.round(bs.size * 0.6), bs.y - Math.round(bs.size * 1.2)], { font: '10px monospace' });
+}
+function _drawHalfHuman(x, y, g, robeCl, skinCl, hairCl, eyeCl) {
+    const scl = g * SC;
+    const lW = Math.round(3 * scl), lH = Math.round(5 * scl);
+    const bW = Math.round(7 * scl), bH = Math.round(8 * scl);
+    const ftY = y + Math.round(8 * scl);
+    dLeg(x - Math.round(3 * scl), ftY - lH, lW, lH, 0, 1);
+    dLeg(x + Math.round(3 * scl), ftY - lH, lW, lH, 0, 1);
+    const bdY = ftY - lH - bH + Math.round(1 * scl);
+    pix(x - Math.round(3.5 * scl), bdY, bW, bH, robeCl);
+    pix(x - Math.round(3 * scl), bdY - Math.round(7 * scl), Math.round(6 * scl), Math.round(7 * scl), skinCl);
+    pix(x - Math.round(3.5 * scl), bdY - Math.round(8 * scl), Math.round(7 * scl), Math.round(2 * scl), hairCl);
+    pix(x - Math.round(2.5 * scl), bdY - Math.round(4.5 * scl), Math.round(1.2 * scl), Math.round(0.8 * scl), '#fff');
+    pix(x + Math.round(1.5 * scl), bdY - Math.round(4.5 * scl), Math.round(1.2 * scl), Math.round(0.8 * scl), '#fff');
+    pix(x - Math.round(2 * scl), bdY - Math.round(4 * scl), Math.round(0.7 * scl), Math.round(0.6 * scl), eyeCl);
+    pix(x + Math.round(1.8 * scl), bdY - Math.round(4 * scl), Math.round(0.7 * scl), Math.round(0.6 * scl), eyeCl);
+}
+
+// ===== 金蛟王（金色蛟龙，角须鳞甲） =====
+function drawJinJiaoWang(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y), g = bs.size / 15;
+    const scl = g * SC;
+    // serpent body (segmented)
+    pix(cx - Math.round(5 * scl), cy - Math.round(3 * scl), Math.round(10 * scl), Math.round(8 * scl), '#8a6a20');
+    for (let i = 0; i < 5; i++) {
+        const sx = cx - Math.round(4 * scl) + i * Math.round(2 * scl);
+        pix(sx, cy - Math.round(2 * scl), Math.round(1.5 * scl), Math.round(6 * scl), '#b89030');
+    }
+    // head
+    pix(cx + Math.round(3 * scl), cy - Math.round(5 * scl), Math.round(7 * scl), Math.round(7 * scl), '#c09030');
+    // jaws
+    pix(cx + Math.round(8 * scl), cy - Math.round(3 * scl), Math.round(5 * scl), Math.round(2 * scl), '#d0a040');
+    pix(cx + Math.round(8 * scl), cy + Math.round(1 * scl), Math.round(4 * scl), Math.round(1.5 * scl), '#d0a040');
+    // eyes
+    pix(cx + Math.round(6 * scl), cy - Math.round(4 * scl), Math.round(2 * scl), Math.round(2 * scl), '#ff0');
+    pix(cx + Math.round(6.5 * scl), cy - Math.round(3.5 * scl), Math.round(0.8 * scl), Math.round(0.8 * scl), '#400');
+    // horns
+    ln(cx + Math.round(5 * scl), cy - Math.round(5 * scl), cx + Math.round(3 * scl), cy - Math.round(10 * scl), '#e0c060', Math.round(1.5 * scl));
+    ln(cx + Math.round(7 * scl), cy - Math.round(5 * scl), cx + Math.round(9 * scl), cy - Math.round(10 * scl), '#e0c060', Math.round(1.5 * scl));
+    // whiskers
+    ln(cx + Math.round(8 * scl), cy - Math.round(1 * scl), cx + Math.round(14 * scl), cy - Math.round(3 * scl), '#f0dd80', Math.round(0.8 * scl));
+    ln(cx + Math.round(8 * scl), cy + Math.round(1 * scl), cx + Math.round(14 * scl), cy + Math.round(3 * scl), '#f0dd80', Math.round(0.8 * scl));
+    // tail
+    for (let i = 0; i < 4; i++) {
+        const tx = cx - Math.round((6 + i * 3) * scl);
+        const ty = cy + Math.round((2 + Math.sin(i * 1.2) * 3) * scl);
+        pix(tx, ty - Math.round(1 * scl), Math.round(3 * scl), Math.round(2 * scl), '#a08020');
+    }
+    G.circle('line', 'rgba(255,160,64,0.2)', [cx, cy], Math.round(bs.size * 0.8), { lineWidth: 2 });
+    const hpP = bs.hp / bs.maxHp;
+    pix(bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 0.9), Math.round(bs.size), Math.round(2 * SC), '#300');
+    pix(bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 0.9), Math.round(bs.size * hpP), Math.round(2 * SC), '#f00');
+    G.print('#ff0', bs.name, [bs.x - Math.round(bs.size * 0.5), bs.y - Math.round(bs.size * 1.2)], { font: '10px monospace' });
+}
+
+// ===== 寒骊上人（白衣冰修，冰晶法宝） =====
+function drawHanLiShangRen(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#d0d8e8', '#f0f0ff', '#b0c0e0', '#80d0ff', { weapon:'iceCrystal', hairStyle:'long', lips:'#80d0ff' });
+    for (let i = 0; i < 5; i++) {
+        const ang = i * Math.PI * 2 / 5 + game.bottleGlowT;
+        const fx = cx + Math.cos(ang) * Math.round(bs.size * 0.6);
+        const fy = cy + Math.sin(ang) * Math.round(bs.size * 0.5);
+        G.circle('line', ['#ff4040','#ff8040','#ffd040','#80ff80','#80d0ff'][i], [fx, fy], Math.round(bs.size * 0.15), { lineWidth: 2 });
+    }
+    G.circle('line', 'rgba(128,208,255,0.2)', [cx, cy], Math.round(bs.size * 0.7), { lineWidth: 2 });
+}
+
+// ===== 元刹圣祖分魂（黑雾巨魔，战幡魔器） =====
+function drawYuanShaSplit(bs) {
+    const cx = Math.round(bs.x), cy = Math.round(bs.y);
+    _bossBase(bs, '#0a0a0a', '#606060', '#101010', '#ff40ff', { weapon:'banner', horns:true, robeDeco:'#ff40ff' });
+    G.circle('line', 'rgba(255,64,255,0.35)', [cx, cy], Math.round(bs.size * 0.8), { lineWidth: 3 });
+    G.circle('line', 'rgba(255,64,255,0.12)', [cx, cy], Math.round(bs.size * 1.2), { lineWidth: 1.5 });
+}
+
+// ===== 金蛟（装饰性敌人） =====
 function drawGoldDragon(bs) {
-    const s = bs.size;
+    const s = bs.size * 1.6;
     cir(bs.x, bs.y, s, '#8a7a2a'); G.circle('line', '#f0d060', [bs.x, bs.y], s, { lineWidth: 3 });
     pix(bs.x - Math.round(s * 0.3), bs.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#f00');
     pix(bs.x + Math.round(s * 0.1), bs.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#f00');
@@ -257,88 +588,72 @@ function drawGoldDragon(bs) {
     G.print('#ff0', bs.name, [bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 1)], { font: '10px monospace' });
 }
 
-// ===== 万天明（枯瘦魔修） =====
-function drawWanTianming(bs) {
-    const s = bs.size;
-    cir(bs.x, bs.y, s, '#3a2a3a'); G.circle('line', '#8a6a8a', [bs.x, bs.y], s, { lineWidth: 3 });
-    pix(bs.x - Math.round(s * 0.3), bs.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#c0a0c0');
-    pix(bs.x + Math.round(s * 0.1), bs.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#c0a0c0');
-    pix(bs.x - Math.round(s * 0.2), bs.y, Math.round(s * 0.4), Math.round(s * 0.1), '#6a4a6a');
-    const hpP = bs.hp / bs.maxHp;
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s), Math.round(2 * SC), '#300');
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s * hpP), Math.round(2 * SC), '#f00');
-    G.print('#ff0', bs.name, [bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 1)], { font: '10px monospace' });
-}
-
-// ===== 元刹圣祖 =====
-function drawYuanSha(bs) {
-    const s = bs.size;
-    cir(bs.x, bs.y, s, '#1a0a1a'); G.circle('line', '#c040c0', [bs.x, bs.y], s, { lineWidth: 4 });
-    pix(bs.x - Math.round(s * 0.35), bs.y - Math.round(s * 0.35), Math.round(s * 0.25), Math.round(s * 0.25), '#f0f');
-    pix(bs.x + Math.round(s * 0.1), bs.y - Math.round(s * 0.35), Math.round(s * 0.25), Math.round(s * 0.25), '#f0f');
-    G.circle('line', 'rgba(200,40,200,0.3)', [bs.x, bs.y], s + 5, { lineWidth: 1.5 });
-    const hpP = bs.hp / bs.maxHp;
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s), Math.round(2 * SC), '#300');
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s * hpP), Math.round(2 * SC), '#f00');
-    G.print('#ff0', bs.name, [bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 1)], { font: '10px monospace' });
-}
-
-// ===== 呼老魔 =====
-function drawHuLaoMo(bs) {
-    const s = bs.size;
-    cir(bs.x, bs.y, s, '#1a1a2a'); G.circle('line', '#6060c0', [bs.x, bs.y], s, { lineWidth: 3 });
-    pix(bs.x - Math.round(s * 0.3), bs.y - Math.round(s * 0.3), Math.round(s * 0.25), Math.round(s * 0.25), '#f80');
-    pix(bs.x + Math.round(s * 0.05), bs.y - Math.round(s * 0.3), Math.round(s * 0.25), Math.round(s * 0.25), '#f80');
-    const hpP = bs.hp / bs.maxHp;
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s), Math.round(2 * SC), '#300');
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s * hpP), Math.round(2 * SC), '#f00');
-    G.print('#ff0', bs.name, [bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 1)], { font: '10px monospace' });
-}
-
-// ===== 元刹圣祖分魂 =====
-function drawYuanShaSplit(bs) {
-    const s = bs.size;
-    cir(bs.x, bs.y, s, '#0a0a0a'); G.circle('line', '#ff40ff', [bs.x, bs.y], s, { lineWidth: 4 });
-    pix(bs.x - Math.round(s * 0.35), bs.y - Math.round(s * 0.35), Math.round(s * 0.3), Math.round(s * 0.3), '#f0f');
-    pix(bs.x + Math.round(s * 0.05), bs.y - Math.round(s * 0.35), Math.round(s * 0.3), Math.round(s * 0.3), '#f0f');
-    G.circle('line', 'rgba(255,40,255,0.4)', [bs.x, bs.y], s + 6, { lineWidth: 2 });
-    const hpP = bs.hp / bs.maxHp;
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s), Math.round(2 * SC), '#300');
-    pix(bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 0.8), Math.round(s * hpP), Math.round(2 * SC), '#f00');
-    G.print('#ff0', bs.name, [bs.x - Math.round(s * 0.5), bs.y - Math.round(s * 1)], { font: '10px monospace' });
-}
-
 export function drawEn(e) {
     if (e.isBoss) { drawBoss(e); return; }
-    const s = e.size;
-    if (e.type === '弓手') {
-        cir(e.x, e.y, s, '#5a6a3a'); G.circle('line', '#4a5a2a', [e.x, e.y], s, { lineWidth: 1.5 });
-        pix(e.x - Math.round(s * 0.3), e.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#f80');
-        pix(e.x + Math.round(s * 0.1), e.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#f80');
-        const ba2 = Math.atan2(game.HL.y - e.y, game.HL.x - e.x);
-        G.circle('line', '#c04020', [e.x + Math.cos(ba2) * s * 0.6, e.y + Math.sin(ba2) * s * 0.6], s * 0.3, { lineWidth: 1 });
-    } else if (e.type === '冲锋') {
-        cir(e.x, e.y, s, '#8b5a2b'); G.circle('line', '#6b4a1b', [e.x, e.y], s, { lineWidth: 2 });
-        pix(e.x - Math.round(s * 0.35), e.y - Math.round(s * 0.35), Math.round(s * 0.2), Math.round(s * 0.2), '#f00');
-        pix(e.x + Math.round(s * 0.15), e.y - Math.round(s * 0.35), Math.round(s * 0.2), Math.round(s * 0.2), '#f00');
-        if (e.charging) {
-            G.circle('line', 'rgba(255,100,0,0.5)', [e.x, e.y], s + 3, { lineWidth: 2 });
+    const s = e.size, cx = Math.round(e.x), cy = Math.round(e.y);
+    const atkT = e.atkT || 0;
+    const aimA = Math.atan2(game.HL.y - cy, game.HL.x - cx);
+    const scl = Math.max(0.8, s / 4);
+
+    function _enBody(bCl, rCl, hCl, eCl) {
+        pix(cx - Math.round(2 * scl), cy - Math.round(1 * scl), Math.round(4 * scl), Math.round(5 * scl), bCl);
+        pix(cx - Math.round(2.5 * scl), cy - Math.round(1 * scl), Math.round(5 * scl), Math.round(4 * scl), rCl);
+        pix(cx - Math.round(1.5 * scl), cy - Math.round(5 * scl), Math.round(3 * scl), Math.round(4 * scl), hCl);
+        pix(cx - Math.round(2 * scl), cy - Math.round(6 * scl), Math.round(4 * scl), Math.round(1.5 * scl), '#333');
+        pix(cx - Math.round(1 * scl), cy - Math.round(4 * scl), Math.round(0.8 * scl), Math.round(0.6 * scl), '#fff');
+        pix(cx + Math.round(0.3 * scl), cy - Math.round(4 * scl), Math.round(0.8 * scl), Math.round(0.6 * scl), '#fff');
+        pix(cx - Math.round(0.7 * scl), cy - Math.round(3.7 * scl), Math.round(0.4 * scl), Math.round(0.4 * scl), eCl);
+        pix(cx + Math.round(0.4 * scl), cy - Math.round(3.7 * scl), Math.round(0.4 * scl), Math.round(0.4 * scl), eCl);
+    }
+    function _enArms(lCl, rCl, armL) {
+        const al = Math.round(armL || 3.5 * scl);
+        for (let side = -1; side <= 1; side += 2) {
+            const sx = cx + side * Math.round(1.5 * scl), sy = cy + Math.round(1 * scl);
+            const ax = sx + side * al, ay = sy + al * 0.3;
+            ln(sx, sy, ax, ay, side > 0 ? rCl : lCl, Math.round(0.8 * scl));
         }
-    } else if (e.type === '召唤师') {
-        cir(e.x, e.y, s, '#5a3a6a'); G.circle('line', '#4a2a5a', [e.x, e.y], s, { lineWidth: 2 });
-        pix(e.x - Math.round(s * 0.3), e.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#a0f');
-        pix(e.x + Math.round(s * 0.1), e.y - Math.round(s * 0.3), Math.round(s * 0.2), Math.round(s * 0.2), '#a0f');
-        G.circle('line', '#8060c0', [e.x, e.y], s + 2, { lineWidth: 1 });
-    } else if (e.type === '凡人') {
-        cir(e.x, e.y, s, '#8b7355'); G.circle('line', '#6b5335', [e.x, e.y], s, { lineWidth: 1.5 });
-        pix(e.x - Math.round(s * 0.35), e.y - Math.round(s * 0.4), Math.round(s * 0.25), Math.round(s * 0.25), '#fff');
-        pix(e.x + Math.round(s * 0.1), e.y - Math.round(s * 0.4), Math.round(s * 0.25), Math.round(s * 0.25), '#fff');
-    } else if (e.type === '精英') {
-        cir(e.x, e.y, s, '#8b3a3a'); G.circle('line', '#6b2a2a', [e.x, e.y], s, { lineWidth: 2 });
-        pix(e.x - Math.round(s * 0.3), e.y - Math.round(s * 0.3), Math.round(s * 0.25), Math.round(s * 0.25), '#ff0');
-        G.circle('line', '#f80', [e.x, e.y], s + 2, { lineWidth: 1 });
+    }
+    function _enLegs() {
+        for (let side = -1; side <= 1; side += 2) {
+            const lx = cx + side * Math.round(1.5 * scl), ly = cy + Math.round(3.5 * scl);
+            pix(lx - Math.round(0.6 * scl), ly, Math.round(1.2 * scl), Math.round(3 * scl), '#3a3a3a');
+        }
+    }
+    function _enAtkArm(cl) {
+        if (atkT <= 0) return;
+        const sx = cx + Math.cos(aimA) * Math.round(1.5 * scl), sy = cy + Math.sin(aimA) * Math.round(1.5 * scl) + Math.round(0.5 * scl);
+        const len = s * 1.2;
+        const ax = sx + Math.cos(aimA) * len, ay = sy + Math.sin(aimA) * len;
+        ln(sx, sy, ax, ay, cl, Math.round(1.2 * scl));
+    }
+
+    const role = e.role || 'melee';
+    const skin = e.skin || {};
+    const bCl = skin.bCl || '#5a2020', rCl = skin.rCl || '#6a3030', hCl = skin.hCl || '#d0b890', eCl = skin.eCl || '#f44';
+
+    if (role === 'ranged') {
+        _enBody(bCl, rCl, hCl, eCl); _enLegs(); _enArms(bCl, rCl);
+        if (atkT > 0) {
+            const sx2 = cx + Math.cos(aimA) * Math.round(1.5 * scl), sy2 = cy + Math.sin(aimA) * Math.round(1.5 * scl);
+            const ax2 = sx2 + Math.cos(aimA) * s * 1.5, ay2 = sy2 + Math.sin(aimA) * s * 1.5;
+            ln(sx2, sy2, ax2, ay2, '#c04020', 1.2);
+            G.circle('line', '#c04020', [ax2 + Math.cos(aimA) * 3, ay2 + Math.sin(aimA) * 3], s * 0.3, { lineWidth: 1 });
+        }
+    } else if (role === 'charger') {
+        _enBody(bCl, rCl, hCl, eCl); _enLegs(); _enAtkArm('#c04020');
+        if (!atkT) _enArms(bCl, rCl);
+        if (e.charging) G.circle('line', 'rgba(255,100,0,0.5)', [cx, cy], s + 3, { lineWidth: 2 });
+    } else if (role === 'summoner') {
+        _enBody(bCl, rCl, hCl, eCl); _enLegs(); _enArms(bCl, rCl);
+        if (atkT > 0) {
+            const sx2 = cx + Math.cos(aimA) * Math.round(1.5 * scl), sy2 = cy + Math.sin(aimA) * Math.round(1.5 * scl);
+            const ax2 = sx2 + Math.cos(aimA) * s * 1, ay2 = sy2 + Math.sin(aimA) * s * 1;
+            G.circle('line', '#c0f', [ax2, ay2], s * 0.4, { lineWidth: 1.5 });
+        }
+        G.circle('line', '#8060c0', [cx, cy], s + 2, { lineWidth: 1 });
     } else {
-        cir(e.x, e.y, s, '#6b3a3a'); G.circle('line', '#4b2a2a', [e.x, e.y], s, { lineWidth: 1.5 });
+        _enBody(bCl, rCl, hCl, eCl); _enLegs(); _enAtkArm('#f66');
+        if (!atkT) _enArms(bCl, rCl);
     }
 }
 
@@ -365,7 +680,7 @@ export function drawFX() {
 
 // ===== 战斗UI =====
 export function drawUI() {
-    const sd = STAGES[game.curS], rn = rsName(game.CL.realm, game.CL.stage), expP = game.CL.exp / game.CL.expToNext, bW = 110;
+    const sd = STAGES.find(s => s.id === game.curStageId), rn = rsName(game.CL.realm, game.CL.stage), expP = game.CL.exp / game.CL.expToNext, bW = 110;
     G.rectangle('fill', [0.02, 0.03, 0.02, 0.88], [0, TB, W, 30]);
     G.rectangle('fill', [0.02, 0.03, 0.02, 0.88], [0, H - 36, W, 36]);
     const hpP = game.hp / maxHP(), mpP = game.mana / maxMana();
@@ -381,7 +696,7 @@ export function drawUI() {
     G.rectangle('fill', [0.05, 0.05, 0.05, 0.6], [410, TB + 10, bW, 10]);
     G.rectangle('fill', [0.2, 0.6, 0.2, 0.8], [410, TB + 10, bW * expP, 10]);
     G.print('#ccc', Math.round(game.CL.exp) + '/' + game.CL.expToNext, [410 + bW + 4, TB + 4], { font: '10px monospace' });
-    G.print('#cba', '副本：' + sd.name + '·' + sd.sub, [8, H - 32], { font: '12px monospace' });
+    G.print('#cba', '副本：' + sd.name, [8, H - 32], { font: '12px monospace' });
     G.print('#aaa', '波次 ' + game.sWv + '/' + sd.waves + (game.bSp ? '  BOSS' : ''), [8, H - 18], { font: '11px monospace' });
     G.print('#888', '攻击:' + atkBase() + (game.CL.breakRdy ? ' | 突破:击败BOSS' : ''), [200, H - 32], { font: '10px monospace' });
     G.print('#aaa', '飞剑:' + game.swCnt + '/72 | 法力:5/击' + (game.atkBuf > 0 ? ' 🔥攻↑' : ''), [200, H - 18], { font: '10px monospace' });
@@ -449,6 +764,67 @@ function drawCaveChest(x, y) {
     pix(x - 8, y - 4, 2, 3, '#d4af37');
     pix(x + 6, y - 4, 2, 3, '#d4af37');
     G.print('#d4af37', '宝箱', [x - 10, y + 10], { font: '10px monospace' });
+}
+
+function drawStoneRoom(x, y) {
+    pix(x - 22, y - 8, 44, 26, '#3a3028');
+    pix(x - 24, y - 10, 48, 4, '#4a4038');
+    pix(x - 20, y - 4, 40, 18, '#2a2018');
+    for (let i = 0; i < 3; i++) {
+        pix(x - 12 + i * 10, y + 4, 6, 8, '#3a3028');
+    }
+    pix(x - 14, y - 10, 8, 2, '#5a5040');
+    pix(x + 6, y - 10, 8, 2, '#5a5040');
+    pix(x - 2, y - 12, 4, 4, '#6a6050');
+    // stone rune glow
+    const glow = 0.3 + Math.sin(game.bottleGlowT * 1.5) * 0.2;
+    G.circle('line', 'rgba(100,160,255,' + glow + ')', [x, y], 28, { lineWidth: 1 });
+    cir(x, y + 2, 3, '#3a3028');
+    G.print('#8a8a6a', '闭关', [x - 14, y + 18], { font: '9px monospace' });
+}
+
+function drawBreakPrompt() {
+    const btInfo = (() => {
+        const rd = REALMS[game.CL.realm];
+        if (!rd || game.CL.stage < rd.maxS) return null;
+        const nextRealm = { '炼气': '筑基', '筑基': '结丹', '结丹': '元婴', '元婴': '化神' }[game.CL.realm];
+        if (!nextRealm) return null;
+        const bt = BREAKTHROUGH[nextRealm];
+        if (!bt) return null;
+        return { nextRealm, icon: bt.icon, desc: bt.desc, items: bt.items, tech: bt.tech, techName: bt.techName };
+    })();
+    if (!btInfo) return;
+
+    G.rectangle('fill', [0, 0, 0, 0.5], [0, 0, W, H]);
+    G.rectangle('fill', [0.04, 0.03, 0.02, 0.94], [W / 2 - 200, H / 2 - 120, 400, 220]);
+    G.rectangle('line', '#ffd700', [W / 2 - 200, H / 2 - 120, 400, 220], { lineWidth: 2 });
+
+    G.print('#ffd700', btInfo.icon + ' 闭 关 突 破', [W / 2 - 80, H / 2 - 100], { font: '20px monospace' });
+    G.print('#aaa', '当前已到达' + game.CL.realm + '境界大圆满', [W / 2 - 110, H / 2 - 60], { font: '13px monospace' });
+    G.print('#ffd700', btInfo.desc + ' → 冲击' + btInfo.nextRealm, [W / 2 - 130, H / 2 - 35], { font: '13px monospace' });
+
+    if (btInfo.tech) {
+        const lv = game.techLvs[btInfo.tech] || 0;
+        G.print(lv >= 3 ? '#0f0' : '#f66', '☯ ' + btInfo.techName + '：' + lv + '/3重', [W / 2 - 80, H / 2 - 8], { font: '11px monospace' });
+    }
+    if (btInfo.items) {
+        let txt = '🧪 所需：';
+        for (const it of btInfo.items) {
+            const has = (game.inventory[it] || 0) > 0;
+            txt += (has ? '🟢' : '🔴') + it + ' ';
+        }
+        G.print('#ddd', txt, [W / 2 - 130, H / 2 + 8], { font: '10px monospace' });
+    }
+
+    const items = ['⚡ 立即闭关冲击' + btInfo.nextRealm, '⏳ 稍后再说'];
+    for (let i = 0; i < 2; i++) {
+        const by = H / 2 + 38 + i * 36, bx = W / 2 - 140, bw = 280, bh = 30;
+        const sel = i === game.breakSel;
+        G.rectangle('fill', sel ? [0.14, 0.1, 0.04, 0.9] : [0.05, 0.04, 0.03, 0.6], [bx, by, bw, bh]);
+        G.rectangle('line', sel ? '#ffd700' : '#444', [bx, by, bw, bh], { lineWidth: sel ? 1.5 : 1 });
+        G.print(sel ? '#fff' : '#aaa', items[i], [bx + 12, by + 8], { font: '13px monospace' });
+    }
+    G.print('#888', '↑↓ 选择  Enter 确认  ESC 稍后', [W / 2 - 110, H / 2 + 118], { font: '10px monospace' });
 }
 
 function drawCavePortal(x, y) {
@@ -674,7 +1050,7 @@ export function drawCave() {
         if (p.planted) {
             const hb = HERBS[p.planted];
             drawHerbSprite(px + 35, py + 55 - 4, p.planted, p.gr, hb.gr);
-            if (p.watered && p.waterAnm > 0) {
+            if (p.waterAnm > 0) {
                 cir(px + 35, py + 27.5, 8 * p.waterAnm, 'rgba(100,150,255,' + p.waterAnm * 0.4 + ')');
             }
             G.print('#aaa', p.planted, [px + 2, py - 12], { font: '9px monospace' });
@@ -691,12 +1067,10 @@ export function drawCave() {
                 const hb = HERBS[p.planted];
                 if (p.gr >= hb.gr) {
                     G.print('#ff0', 'F 采集', [px + 35 - 16, py + 55 + 4], { font: '10px monospace' });
-                } else if (!p.watered) {
-                    G.print('#6af', 'E 浇水', [px + 35 - 24, py + 55 + 4], { font: '10px monospace' });
-                    G.print(game.bottleLiquid >= 0.5 ? '#0f0' : '#666', 'Q 瓶灌', [px + 35 + 8, py + 55 + 4], { font: '10px monospace' });
                 } else {
-                    G.print('#888', '已浇灌', [px + 35 - 16, py + 55 + 4], { font: '10px monospace' });
-                    if (game.bottleLiquid >= 0.5) G.print('#0f0', 'Q 瓶灌', [px + 35 + 8, py + 55 + 4], { font: '10px monospace' });
+                    const cd = p.waterCooldown || 0;
+                    G.print(cd > 0 ? '#888' : '#6af', 'E 浇水' + (cd > 0 ? '(' + Math.ceil(cd) + 's)' : ''), [px + 35 - 32, py + 55 + 4], { font: '10px monospace' });
+                    G.print(game.bottleLiquid >= 0.5 ? '#0f0' : '#666', 'Q 瓶灌', [px + 35 + 8, py + 55 + 4], { font: '10px monospace' });
                 }
             } else {
                 G.print('#8f8', 'E 种植', [px + 35 - 14, py + 55 + 4], { font: '10px monospace' });
@@ -706,11 +1080,14 @@ export function drawCave() {
 
     const chD = Math.hypot(game.gHL.x - 680, game.gHL.y - 480);
     const tbD = Math.hypot(game.gHL.x - 400, game.gHL.y - 280);
+    const srD = Math.hypot(game.gHL.x - 120, game.gHL.y - 100);
     if (chD < 60) { G.print('#ffd700', 'E 打开宝箱', [640, 500], { font: '10px monospace' }); }
     if (tbD < 60) { G.print('#ffd700', 'E 查看背包', [370, 305], { font: '10px monospace' }); }
+    if (srD < 70) { G.print('#ffd700', 'E 闭关石室', [645, 320], { font: '10px monospace' }); }
     G.print('#555', 'ESC 返回大厅', [W / 2 - 35, 20], { font: '9px monospace' });
 
     drawCaveChest(680, 480);
+    drawStoneRoom(680, 300);
 
     drawGardenHL(game.gHL.x, game.gHL.y);
 
@@ -732,14 +1109,26 @@ export function drawCave() {
     G.rectangle('fill', [0.02, 0.03, 0.02, 0.88], [0, H - 28, W, 28]);
     const rn = rsName(game.CL.realm, game.CL.stage);
     G.print('#aaa', rn, [10, H - 22], { font: '10px monospace' });
-    let invText = '背包：';
+    let invText = '';
+    const kKeys = Object.keys(KEY_ITEMS);
+    for (const k of kKeys) {
+        if (game.inventory[k]) invText += KEY_ITEMS[k].icon + ' ';
+    }
+    if (invText) invText = '🔑 ' + invText + '  ';
     let hasItem = false;
-    for (const k in game.inventory) { if (game.inventory[k]) { invText += k + '×' + game.inventory[k] + ' '; hasItem = true } }
-    if (!hasItem) invText += '空';
+    for (const k in game.inventory) {
+        if (kKeys.includes(k)) continue;
+        if (game.inventory[k]) { invText += k + '×' + game.inventory[k] + ' '; hasItem = true }
+    }
+    if (!invText) invText = '背包：空';
     G.print('#8a8', invText, [180, H - 22], { font: '10px monospace' });
 
     if (game.herbMenuOpen) {
         drawHerbMenu();
+    }
+
+    if (game.breakPrompt) {
+        drawBreakPrompt();
     }
 
     if (game.ntfT > 0) { G.print('#ffd700', game.ntf, [W / 2 - game.ntf.length * 4, 40], { font: '14px monospace' }) }
@@ -827,11 +1216,13 @@ export function drawInventory() {
         G.print('#666', '背包空空如也...', [W / 2 - 80, H / 2 - 10], { font: '18px monospace' });
         G.print('#888', '在灵田种植收获灵草来获得道具', [W / 2 - 120, H / 2 + 16], { font: '11px monospace' });
     } else {
-        const ox = 120, oy = 80;
+        const ox = 120, oy = 80, itemH = 50, viewH = H - oy - 36;
+        const sy = game.invScrollY;
         for (let i = 0; i < keys.length; i++) {
             const nm = keys[i], count = game.inventory[nm], item = ITEMS[nm];
             const sel = i === game.invSel;
-            const ry = oy + i * 50;
+            const ry = oy + i * itemH - sy;
+            if (ry + itemH < oy - 2 || ry > oy + viewH + 2) continue;
             G.rectangle('fill', sel ? [0.1, 0.08, 0.02, 0.8] : [0.04, 0.03, 0.02, 0.5], [ox, ry, W - 240, 42]);
             if (sel) G.rectangle('line', '#ffd700', [ox, ry, W - 240, 42], { lineWidth: 1.5 });
             if (item) cir(ox + 18, ry + 21, 6, item.cl);
@@ -854,10 +1245,12 @@ export function drawShop() {
     G.print('#0ff', '💎 ' + game.spiritStones, [W - 120, 22], { font: '12px monospace' });
     G.print('#888', 'ESC 返回洞府', [W - 140, 42], { font: '10px monospace' });
 
-    const ox = 140, oy = 80;
+    const ox = 140, oy = 80, itemH = 56, viewH = H - oy - 36;
+    const sy = game.shopScrollY;
     for (let i = 0; i < SHOP_ITEMS.length; i++) {
         const item = SHOP_ITEMS[i], sel = i === game.shopSel;
-        const ry = oy + i * 56;
+        const ry = oy + i * itemH - sy;
+        if (ry + itemH < oy - 2 || ry > oy + viewH + 2) continue;
         G.rectangle('fill', sel ? [0.1, 0.08, 0.02, 0.8] : [0.04, 0.03, 0.02, 0.5], [ox, ry, W - 280, 46]);
         if (sel) G.rectangle('line', '#ffd700', [ox, ry, W - 280, 46], { lineWidth: 1.5 });
         cir(ox + 18, ry + 23, 7, item.cl);
@@ -886,9 +1279,11 @@ function drawSaveSlots(mode) {
         return;
     }
     const slots = getAllSlots();
-    const oy = 105;
+    const oy = 105, itemH = 32, viewH = H - oy - 120;
+    const sy = game.hubScrollY;
     for (let i = 0; i < slots.length; i++) {
-        const s = slots[i], by = oy + i * 32, bx = W / 2 - 200, bw = 400, bh = 28;
+        const s = slots[i], by = oy + i * itemH - sy, bx = W / 2 - 200, bw = 400, bh = 28;
+        if (by + bh < oy - 2 || by > oy + viewH + 2) continue;
         const sel = i === game.hubSel;
         const hasData = s.data !== null;
         G.rectangle('fill', sel ? [0.14, 0.1, 0.04, 0.9] : hasData ? [0.06, 0.05, 0.03, 0.7] : [0.03, 0.02, 0.01, 0.5], [bx, by, bw, bh]);
@@ -928,9 +1323,11 @@ export function drawTitle() {
     if (game.titleMode === 'slots') {
         G.print('#0f0', '选择存档', [W / 2 - 35, 185], { font: '15px monospace' });
         const slots = getAllSlots();
-        const oy = 210;
+        const oy = 210, itemH = 32, viewH = H - oy - 40;
+        const sy = game.titleScrollY;
         for (let i = 0; i < slots.length; i++) {
-            const s = slots[i], by = oy + i * 32, bx = W / 2 - 200, bw = 400, bh = 28;
+            const s = slots[i], by = oy + i * itemH - sy, bx = W / 2 - 200, bw = 400, bh = 28;
+            if (by + bh < oy - 2 || by > oy + viewH + 2) continue;
             const sel = i === game.titleSel;
             const hasData = s.data !== null;
             G.rectangle('fill', sel ? [0.12, 0.1, 0.04, 0.9] : hasData ? [0.05, 0.04, 0.02, 0.7] : [0.03, 0.02, 0.01, 0.5], [bx, by, bw, bh]);
@@ -968,36 +1365,40 @@ export function drawHub() {
     G.print('#0ff', '💎 ' + game.spiritStones, [W / 2 - 25, 74], { font: '11px monospace' });
 
     if (game.hubMode === 'stages') {
-        G.print('#555', 'ESC 返回大厅', [W / 2 - 45, 92], { font: '10px monospace' });
-        const cleared = game.clearedStages || [];
-        const clearedSet = new Set(cleared);
-        const oy = 105;
-        for (let i = 0; i < STAGES.length; i++) {
-            const st = STAGES[i], by = oy + i * 44, bx = W / 2 - 200, bw = 400, bh = 38;
+        G.print('#555', 'ESC 返回上层', [W / 2 - 45, 92], { font: '10px monospace' });
+        const nodes = getMapList(game.mapLevel === 0 ? WORLD_MAP : getCurrentChildren());
+        const oy = 105, itemH = 44, viewH = H - oy - 140;
+        const sy = game.hubScrollY;
+        for (let i = 0; i < nodes.length; i++) {
+            const node = nodes[i], by = oy + i * itemH - sy, bx = W / 2 - 200, bw = 400, bh = 38;
+            if (by + bh < oy - 2 || by > oy + viewH + 2) continue;
             const sel = i === game.hubSel;
-            const isCleared = clearedSet.has(i);
-            const isUnlocked = isCleared || (cleared.length > 0 ? i <= Math.max(...cleared) + 1 : i === 0);
-            const bgCl = sel ? [0.14, 0.1, 0.04, 0.9] : isUnlocked ? [0.06, 0.05, 0.03, 0.7] : [0.03, 0.02, 0.01, 0.5];
-            const bdCl = sel ? '#ffd700' : isCleared ? '#0a0' : isUnlocked ? '#444' : '#222';
+            const isLeaf = !!node.stage;
+            const cleared = (game.clearedStages || []).includes(isLeaf ? node.stage.id : '');
+            const unlocked = isMapUnlocked(node);
+            const bgCl = sel ? [0.14, 0.1, 0.04, 0.9] : unlocked ? [0.06, 0.05, 0.03, 0.7] : [0.03, 0.02, 0.01, 0.5];
+            const bdCl = sel ? '#ffd700' : cleared ? '#0a0' : unlocked ? node.cl || '#444' : '#222';
             G.rectangle('fill', bgCl, [bx, by, bw, bh]);
             G.rectangle('line', bdCl, [bx, by, bw, bh], { lineWidth: sel ? 2 : 1 });
-            const icon = isCleared ? '✅' : isUnlocked ? '🔓' : '🔒';
-            const cl = sel ? '#fff' : isUnlocked ? '#aaa' : '#555';
-            G.print(cl, icon + ' ' + st.name, [bx + 12, by + 10], { font: '14px monospace' });
-            G.print(isUnlocked ? '#666' : '#444', isUnlocked ? st.sub : '未解锁', [bx + 12, by + 26], { font: '9px monospace' });
-            if (isUnlocked) G.print('#666', '�' + (20 + i * 10), [bx + bw - 70, by + 10], { font: '10px monospace' });
-            if (isCleared) G.print('#0f0', '✓', [bx + bw - 30, by + 10], { font: '12px monospace' });
+            const icon = cleared ? '✅' : !unlocked ? '🔒' : isLeaf ? '⚔' : '📁';
+            const cl = sel ? '#fff' : unlocked ? '#aaa' : '#555';
+            G.print(cl, icon + ' ' + node.name, [bx + 12, by + 10], { font: '14px monospace' });
+            G.print(unlocked ? '#666' : '#f66', unlocked ? (node.desc || '') : getHint(node), [bx + 12, by + 26], { font: '8px monospace' });
+            if (cleared) G.print('#0f0', '✓', [bx + bw - 30, by + 10], { font: '12px monospace' });
         }
     } else if (game.hubMode === 'techniques') {
         G.print('#555', 'ESC 返回大厅', [W / 2 - 45, 92], { font: '10px monospace' });
         const RNAME_INDEX2 = { '炼气': 0, '筑基': 1, '结丹': 2, '元婴': 3, '化神': 4 };
         const realmIdx = RNAME_INDEX2[game.CL.realm] || 0;
-        const oy = 100;
+        const oy = 100, itemH = 42, viewH = H - oy - 130;
+        const sy = game.hubScrollY;
         const hasBossT = game.bossTechs && game.bossTechs.length > 0;
-        G.print('#888', '—— 基础功法 ——', [W / 2 - 45, oy - 5], { font: '9px monospace' });
+        const headY = oy - 5 - sy;
+        if (headY + 12 > oy - 5 && headY < oy + viewH) G.print('#888', '—— 基础功法 ——', [W / 2 - 45, headY], { font: '9px monospace' });
         const baseList = TECHNIQUES.filter(t => t.type === 'base');
         for (let i = 0; i < baseList.length; i++) {
-            const t = baseList[i], by = oy + i * 42, bx = W / 2 - 200, bw = 400, bh = 36;
+            const t = baseList[i], by = oy + i * itemH - sy, bx = W / 2 - 200, bw = 400, bh = 36;
+            if (by + bh < oy - 2 || by > oy + viewH + 2) continue;
             const sel = i === game.hubSel;
             const curLv = game.techLvs[t.id] || 0;
             const reqIdx = RNAME_INDEX2[t.realm] || 0;
@@ -1018,9 +1419,10 @@ export function drawHub() {
                 }
             }
         }
-        const bossStart = oy + baseList.length * 42 + 8;
+        const bossStart = oy + baseList.length * itemH + 8;
         if (hasBossT) {
-            G.print('#f80', '—— Boss秘传功法 ——', [W / 2 - 60, bossStart - 5], { font: '9px monospace' });
+            const bhY = bossStart - 5 - sy;
+            if (bhY + 12 > oy - 5 && bhY < oy + viewH) G.print('#f80', '—— Boss秘传功法 ——', [W / 2 - 60, bhY], { font: '9px monospace' });
         }
         const bossList = TECHNIQUES.filter(t => t.type === 'boss');
         let bossVisible = 0;
@@ -1029,7 +1431,8 @@ export function drawHub() {
             const isOwned = game.bossTechs && game.bossTechs.includes(t.id);
             if (!isOwned) continue;
             const idx = baseList.length + bossVisible;
-            const by = bossStart + bossVisible * 42, bx = W / 2 - 200, bw = 400, bh = 36;
+            const by = bossStart + bossVisible * itemH - sy, bx = W / 2 - 200, bw = 400, bh = 36;
+            if (by + bh < oy - 2 || by > oy + viewH + 2) continue;
             const sel = idx === game.hubSel;
             const curLv = game.techLvs[t.id] || 0;
             const bgCl = sel ? [0.16, 0.08, 0.06, 0.9] : [0.08, 0.04, 0.02, 0.7];
@@ -1049,17 +1452,42 @@ export function drawHub() {
         }
     } else if (game.hubMode === 'save') {
         drawSaveSlots('hub');
+    } else if (game.hubMode === 'bossRush') {
+        G.print('#555', 'ESC 返回大厅', [W / 2 - 45, 92], { font: '10px monospace' });
+        const blist = getBossList();
+        const oy = 105, itemH = 44, viewH = H - oy - 90;
+        const sy = game.hubScrollY;
+        for (let i = 0; i < blist.length; i++) {
+            const b = blist[i], by = oy + i * itemH - sy, bx = W / 2 - 200, bw = 400, bh = 38;
+            if (by + bh < oy - 2 || by > oy + viewH + 2) continue;
+            const sel = i === game.hubSel;
+            const bgCl = sel ? [0.14, 0.1, 0.04, 0.9] : [0.06, 0.05, 0.03, 0.7];
+            G.rectangle('fill', bgCl, [bx, by, bw, bh]);
+            G.rectangle('line', sel ? '#ffd700' : '#f44', [bx, by, bw, bh], { lineWidth: sel ? 2 : 1 });
+            G.print(sel ? '#fff' : '#faa', '⚔ ' + b.name, [bx + 12, by + 10], { font: '13px monospace' });
+            G.print('#888', b.waveName + ' | ❤' + b.hp + ' ⚔' + b.atk + ' EXP' + b.exp, [bx + 12, by + 26], { font: '8px monospace' });
+        }
+        G.print('#888', '↑↓ 选择  Enter 挑战  ESC 返回', [W / 2 - 110, H - 28], { font: '10px monospace' });
     } else {
-        const items = ['⚔ 进入洞府', '🧪 进入坊市', '🗺 副本选择', '📖 功法修炼', '💾 存档'];
-        const descs = ['休整、灵田、装备整理', '选购丹药与道具', '选择已通关或新副本挑战', '修炼被动功法增强实力', '手动存盘至存档槽'];
+        const items = ['⚔ 进入洞府', '🧪 进入坊市', '🗺 地图选择', '📖 功法修炼', '⚡ Boss挑战', '💾 存档'];
+        const descs = ['休整、灵田、装备整理', '选购丹药与道具', '选择地图关卡挑战', '修炼被动功法增强实力', '直接挑战所有Boss', '手动存盘至存档槽'];
         const oy = 120;
         for (let i = 0; i < items.length; i++) {
-            const bx = W / 2 - 180, by = oy + i * 60, bw = 360, bh = 48;
+            const bx = W / 2 - 180, by = oy + i * 55, bw = 360, bh = 44;
             const sel = i === game.hubSel;
             G.rectangle('fill', sel ? [0.12, 0.1, 0.04, 0.9] : [0.06, 0.05, 0.03, 0.7], [bx, by, bw, bh]);
             G.rectangle('line', sel ? '#ffd700' : '#333', [bx, by, bw, bh], { lineWidth: sel ? 2 : 1 });
             G.print(sel ? '#fff' : '#aaa', items[i], [bx + 16, by + 12], { font: '16px monospace' });
             G.print('#666', descs[i], [bx + 16, by + 32], { font: '10px monospace' });
+        }
+        const kKeys = Object.keys(KEY_ITEMS);
+        let kiText = '';
+        for (const k of kKeys) {
+            if (game.inventory[k]) kiText += KEY_ITEMS[k].icon + ' ';
+        }
+        if (kiText) {
+            G.print('#aaa', '🗝 关键道具', [W / 2 - 170, 430], { font: '10px monospace' });
+            G.print('#ffd700', kiText, [W / 2 - 60, 430], { font: '14px monospace' });
         }
     }
 
@@ -1076,6 +1504,47 @@ export function drawHub() {
     G.rectangle('fill', [0.1, 0.4, 0.9, 0.8], [W / 2 - 60, H - 88, 120 * mpP, 8]);
 
     G.print('#555', '↑↓ 选择  Enter 确认' + (game.hubMode === 'stages' || game.hubMode === 'techniques' || game.hubMode === 'save' ? '  ESC 返回' : ''), [W / 2 - 80, H - 26], { font: '11px monospace' });
+}
+
+// ===== 城镇界面（0波关卡） =====
+export function drawTown() {
+    const sd = STAGES.find(s => s.id === game.curStageId);
+    G.clear('#0a0a0f');
+    for (let x = 0; x < W; x += 40) for (let y = 0; y < H; y += 40) if ((x / 40 + y / 40) % 2 === 0) G.rectangle('fill', '#08060e', [x, y, 40, 40]);
+
+    G.print('#ffd700', '🏙 ' + (sd ? sd.name : ''), [W / 2 - 120, 60], { font: '24px monospace' });
+    G.print('#aaa', sd ? sd.desc || '' : '', [W / 2 - 120, 90], { font: '11px monospace' });
+
+    if (sd && sd.id === 'lxtxFangShi') {
+        G.print('#ccc', '天星城是乱星海最大的修仙者聚集地。坊市中八方修士云集，', [W / 2 - 240, 140], { font: '11px monospace' });
+        G.print('#ccc', '丹药铺、法器阁、传送阵无所不有。', [W / 2 - 240, 158], { font: '11px monospace' });
+
+        const items = ['🧪 进入商店', '🚪 离开坊市'];
+        const oy = 210;
+        for (let i = 0; i < items.length; i++) {
+            const by = oy + i * 60, bx = W / 2 - 140, bw = 280, bh = 46;
+            const sel = i === game.townSel;
+            G.rectangle('fill', sel ? [0.14, 0.1, 0.04, 0.9] : [0.06, 0.05, 0.03, 0.7], [bx, by, bw, bh]);
+            G.rectangle('line', sel ? '#ffd700' : '#444', [bx, by, bw, bh], { lineWidth: sel ? 2 : 1 });
+            G.print(sel ? '#fff' : '#aaa', items[i], [bx + 16, by + 14], { font: '16px monospace' });
+        }
+    } else if (sd && sd.id === 'lxtxMiKu') {
+        G.print('#ffd700', '🎁 密库宝箱已开启！', [W / 2 - 100, 140], { font: '16px monospace' });
+        G.print('#ccc', '获得：培元丹×2  凝元丹×1', [W / 2 - 100, 170], { font: '14px monospace' });
+
+        const items = ['✔ 确认收获', '🚪 离开密库'];
+        const oy = 230;
+        for (let i = 0; i < items.length; i++) {
+            const by = oy + i * 60, bx = W / 2 - 140, bw = 280, bh = 46;
+            const sel = i === game.townSel;
+            G.rectangle('fill', sel ? [0.14, 0.1, 0.04, 0.9] : [0.06, 0.05, 0.03, 0.7], [bx, by, bw, bh]);
+            G.rectangle('line', sel ? '#ffd700' : '#444', [bx, by, bw, bh], { lineWidth: sel ? 2 : 1 });
+            G.print(sel ? '#fff' : '#aaa', items[i], [bx + 16, by + 14], { font: '16px monospace' });
+        }
+    }
+
+    G.print('#0ff', '💎 ' + game.spiritStones, [W - 120, 22], { font: '12px monospace' });
+    G.print('#888', '↑↓ 选择  Enter 确认  ESC/R 离开', [W / 2 - 120, H - 30], { font: '10px monospace' });
 }
 
 // ===== 事件界面 =====
@@ -1116,17 +1585,27 @@ export function drawDialogue() {
 
     const sp = line.speaker;
     const text = line.text;
-    const bpName = STAGES[game.curS].boss.name;
+    const bpName = STAGES.find(s => s.id === game.curStageId)?.boss?.name || '';
 
-    if (sp === 'boss') {
-        G.print('#ffd700', bpName, [W / 2 - 318, H / 2 + 8], { font: '13px monospace' });
-    } else if (sp === 'han') {
-        G.print('#6af', '韩立', [W / 2 + 270, H / 2 + 8], { font: '13px monospace' });
-    }
+    if (sp === 'loot') {
+        G.print('#ffd700', '战 利 品', [W / 2 - 40, H / 2 + 14], { font: '18px monospace' });
+        const lines = wrapText(text, 48);
+        for (let i = 0; i < Math.min(lines.length, 5); i++) {
+            G.print('#80ff80', lines[i], [W / 2 - 240, H / 2 + 56 + i * 22], { font: '13px monospace' });
+        }
+    } else {
+        if (sp === 'boss') {
+            G.print('#ffd700', bpName, [W / 2 - 318, H / 2 + 8], { font: '13px monospace' });
+        } else if (sp === 'han') {
+            G.print('#6af', '韩立', [W / 2 + 270, H / 2 + 8], { font: '13px monospace' });
+        } else if (sp === 'narr') {
+            G.print('#888', '——', [W / 2 - 10, H / 2 + 8], { font: '13px monospace' });
+        }
 
-    const lines = wrapText(text, 50);
-    for (let i = 0; i < Math.min(lines.length, 6); i++) {
-        G.print('#eee', lines[i], [W / 2 - 318, H / 2 + 40 + i * 22], { font: '13px monospace' });
+        const lines = wrapText(text, 50);
+        for (let i = 0; i < Math.min(lines.length, 6); i++) {
+            G.print('#eee', lines[i], [W / 2 - 318, H / 2 + 40 + i * 22], { font: '13px monospace' });
+        }
     }
 
     const remaining = game.dialogueLines.length - game.dialogueIdx - 1;
@@ -1155,7 +1634,7 @@ function countCJK(str) {
     let n = 0;
     for (const ch of str) {
         const c = ch.charCodeAt(0);
-        if (c >= 0x4E00 || c >= 0x3000 && c <= 0x303F || c >= 0xFF00) n++;
+        if (c >= 0x4E00 && c <= 0x9FFF || c >= 0x3000 && c <= 0x303F || c >= 0xFF00) n++;
     }
     return n;
 }
@@ -1178,21 +1657,41 @@ export function drawPause() {
 
 // ===== 天劫界面 =====
 export function drawTribulation() {
-    G.clear('#0a0a0f');
+    G.clear('#040408');
 
-    const shake = Math.sin(game.tribSurviveT * 20) * 2;
-    for (let x = 0; x < W; x += 40) for (let y = 0; y < H; y += 40) if ((x / 40 + y / 40) % 2 === 0) G.rectangle('fill', '#080610', [x + shake, y, 40, 40]);
+    const shake = Math.sin(game.tribSurviveT * 20) * 3;
+    const caveBg = game.breakFromCave ? '#1a1008' : '#06060e';
+    for (let x = 0; x < W; x += 40) for (let y = 0; y < H; y += 40) if ((x / 40 + y / 40) % 2 === 0) G.rectangle('fill', caveBg, [x + shake, y, 40, 40]);
 
-    const cfg = TRIBULATION[game.CL.realm];
+    const cfg = TRIBULATION[game.tribRealm];
     const remaining = Math.max(0, game.tribTimer);
     G.print('#ff0', '⚡ 天 劫 ⚡', [W / 2 - 50, 20], { font: '22px monospace' });
-    G.print('#f80', '撑过天劫方可突破至' + ({ '炼气': '筑基', '筑基': '结丹', '结丹': '元婴', '元婴': '化神' }[game.CL.realm] || '?'), [W / 2 - 120, 50], { font: '12px monospace' });
+    G.print('#f80', '撑过天劫方可突破至' + (game.tribRealm || '?'), [W / 2 - 120, 50], { font: '12px monospace' });
     G.print('#f00', '剩余 ' + remaining.toFixed(1) + 's', [W / 2 - 40, 72], { font: '14px monospace' });
 
+    if (game.breakFromCave) {
+        G.print('#8a7a6a', '地下洞穴·闭关石室', [W / 2 - 60, 90], { font: '11px monospace' });
+        G.circle('line', 'rgba(100,80,60,0.15)', [W / 2, H / 2], 180, { lineWidth: 2 });
+        G.circle('line', 'rgba(100,80,60,0.1)', [W / 2, H / 2], 250, { lineWidth: 1.5 });
+    }
+
+    G.print('#fff', '♥ ' + Math.round(game.hp), [12, 14], { font: '13px monospace' });
+    G.print('#6af', '✦ ' + Math.round(game.mana), [12, 34], { font: '11px monospace' });
+    const hpP = game.hp / maxHP();
+    G.rectangle('fill', [0.2, 0.05, 0.05, 0.5], [80, 16, 80, 8]);
+    G.rectangle('fill', [0.8, 0.15, 0.1, 0.8], [80, 16, 80 * hpP, 8]);
+
     for (const b of game.tribBolts) {
-        ln(b.x, b.y - 16, b.x, b.y + 4, '#ffdd44', 3);
-        ln(b.x - 1, b.y - 12, b.x + 1, b.y - 4, '#ffaa00', 1);
-        cir(b.x, b.y - 14, 2, '#fff');
+        if (b.dir === 'right') {
+            ln(b.x, b.y - 12, b.x + 16, b.y, '#ffdd44', 3);
+            ln(b.x + 2, b.y - 8, b.x + 12, b.y + 2, '#ffaa00', 1);
+        } else if (b.dir === 'left') {
+            ln(b.x, b.y - 12, b.x - 16, b.y, '#ffdd44', 3);
+            ln(b.x - 2, b.y - 8, b.x - 12, b.y + 2, '#ffaa00', 1);
+        } else {
+            ln(b.x, b.y - 16, b.x, b.y + 4, '#ffdd44', 3);
+            ln(b.x - 1, b.y - 12, b.x + 1, b.y - 4, '#ffaa00', 1);
+        }
         cir(b.x, b.y, 2, '#ffdd44');
     }
 
@@ -1201,8 +1700,45 @@ export function drawTribulation() {
     drawHL(game.HL.x, game.HL.y);
     if (game.shieldT > 0) { G.circle('line', 'rgba(255,215,0,0.5)', [game.HL.x, game.HL.y], 18 + Math.sin(game.bottleGlowT * 8) * 2, { lineWidth: 2.5 }); }
 
-    pix(0, H - 28, W, 28, '#0a0a14');
-    G.print('#fff', '♥ ' + Math.round(game.hp) + '/' + maxHP(), [10, H - 22], { font: '10px monospace' });
-    G.print('#f80', '法力:' + Math.round(game.mana), [140, H - 22], { font: '10px monospace' });
     G.print('#aaa', 'WASD 闪避天雷！', [W / 2 - 40, H - 22], { font: '10px monospace' });
+}
+
+// ===== 开发者调试面板 =====
+export function drawDebug() {
+    G.rectangle('fill', [0, 0, 0, 0.65], [0, 0, W, H]);
+    G.rectangle('fill', [0.02, 0.02, 0.06, 0.95], [W / 2 - 180, 60, 360, 460]);
+    G.rectangle('line', '#ff0', [W / 2 - 180, 60, 360, 460], { lineWidth: 2 });
+
+    G.print('#ff0', '🐛 开发者调试', [W / 2 - 90, 76], { font: '20px monospace' });
+    G.print('#888', 'ESC 关闭面板', [W / 2 + 100, 80], { font: '9px monospace' });
+
+    G.print('#aaa', '境界：' + game.CL.realm + '·' + (game.CL.realm === '炼气' ? game.CL.stage + '层' : ['初期','中期','后期'][Math.min(game.CL.stage - 1, 2)]) + '  |  💎' + game.spiritStones, [W / 2 - 150, 108], { font: '11px monospace' });
+
+    const items = [
+        '⚡ 切换境界（循环）',
+        '💎 灵石+1000',
+        '🎒 获得全部道具+丹药',
+        '📖 全功法修习圆满',
+        '🗺 解锁全部关卡',
+        '🔄 重置所有进度'
+    ];
+    const descs = [
+        '炼气→筑基→结丹→元婴→化神',
+        '当前 💎' + game.spiritStones + ' → ' + (game.spiritStones + 1000),
+        '14关键道具(含进阶丹) + 培元丹×10 凝元丹×10 回灵丹×10 血灵丹×5 金雷竹材×10',
+        '5基础功法满级 + 9Boss功法全解锁满级',
+        '所有30个地图关卡标记为已通关',
+        '境界/灵石/道具/功法/进度/事件 全部清空'
+    ];
+    const oy = 138;
+    for (let i = 0; i < items.length; i++) {
+        const by = oy + i * 60, bx = W / 2 - 160, bw = 320, bh = 50;
+        const sel = i === game.debugSel;
+        G.rectangle('fill', sel ? [0.12, 0.1, 0.04, 0.9] : [0.05, 0.04, 0.03, 0.6], [bx, by, bw, bh]);
+        G.rectangle('line', sel ? '#ffd700' : '#444', [bx, by, bw, bh], { lineWidth: sel ? 2 : 1 });
+        G.print(sel ? '#fff' : '#aaa', items[i], [bx + 12, by + 10], { font: '14px monospace' });
+        G.print('#666', descs[i], [bx + 12, by + 32], { font: '9px monospace' });
+    }
+
+    G.print('#888', '↑↓ 选择  Enter 执行  ESC 关闭', [W / 2 - 110, H - 40], { font: '10px monospace' });
 }

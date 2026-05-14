@@ -1,6 +1,17 @@
 import { ITEMS } from './config.js';
 import { game } from './state.js';
 import { maxHP, maxMana, doNtf, gainExp } from './utils.js';
+import { W, H } from './engine.js';
+
+function autoScrollInv() {
+    const sel = game.invSel, itemH = 50, oy = 80, viewH = H - oy - 36;
+    const maxScroll = Math.max(0, (sel + 1) * itemH - viewH);
+    let sy = game.invScrollY || 0;
+    const top = sel * itemH, bot = top + itemH;
+    if (top < sy) sy = top;
+    else if (bot > sy + viewH) sy = bot - viewH;
+    game.invScrollY = Math.max(0, Math.min(maxScroll, sy));
+}
 
 export function useItem(name) {
     const item = ITEMS[name];
@@ -20,6 +31,7 @@ export function enterInventory(from) {
     game.gameMode = 'inventory';
     game.inventoryFrom = from || 'cave';
     game.invSel = 0;
+    game.invScrollY = 0;
 }
 
 export function updateInventory(dt, L) {
@@ -31,9 +43,11 @@ export function updateInventory(dt, L) {
     if (keys.length === 0) { return; }
     if (L.input.justPressed('menu_up') || L.input.justPressed('up')) {
         game.invSel = Math.max(0, game.invSel - 1);
+        autoScrollInv();
     }
     if (L.input.justPressed('menu_down') || L.input.justPressed('down')) {
         game.invSel = Math.min(keys.length - 1, game.invSel + 1);
+        autoScrollInv();
     }
     if (L.input.justPressed('menu_enter')) {
         useItem(keys[game.invSel]);

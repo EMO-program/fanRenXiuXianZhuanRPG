@@ -18,11 +18,14 @@ export function getTechBonus() {
         else if (t.id === 'daYan') b.manaMul += tier.val;
         else if (t.id === 'moYiPoison') b.regen = (b.regen || 0) + tier.val;
         else if (t.id === 'moJiaoBlood') { b.regen = (b.regen || 0) + tier.val; b.dmgMul += (tier.val2 || 0); }
-        else if (t.id === 'jinJiaoScale') { b.hpMul += tier.val; b.flatDef += (tier.val2 || 0); }
-        else if (t.id === 'tianMingSword') { b.swordSpdMul += tier.val; b.dmgMul += (tier.val2 || 0); }
-        else if (t.id === 'yuanShaDemon') { b.dmgMul += tier.val; b.lifeSteal += (tier.val2 || 0); }
-        else if (t.id === 'huMoTrue') b.dmgMul += (tier.val2 || 0);
-        else if (t.id === 'yuanShaSplit') { b.regen = (b.regen || 0) + tier.val; b.hpMul += tier.val2; b.dmgMul += tier.val2; b.manaMul += tier.val2; }
+        else if (t.id === 'wangChanSoul') b.dmgMul += (tier.val2 || 0);
+        else if (t.id === 'fengXiWing') { b.spdMul += tier.val; b.dmgMul += (tier.val2 || 0); }
+        else if (t.id === 'xuanGuBody') { b.hpMul += tier.val; b.flatDef += (tier.val2 || 0); }
+        else if (t.id === 'muLanMagic') { b.dmgMul += tier.val; b.lifeSteal += (tier.val2 || 0); }
+        else if (t.id === 'tianLanGrace') { b.regen = (b.regen || 0) + tier.val; b.hpMul += tier.val2; b.dmgMul += tier.val2; b.manaMul += tier.val2; }
+        else if (t.id === 'yinLuoDemon') { b.dmgMul += tier.val; b.manaMul += (tier.val2 || 0); }
+        else if (t.id === 'icePhoenix') { b.hpMul += tier.val; b.flatDef += (tier.val2 || 0); }
+        else if (t.id === 'triRevolve') b.regen = (b.regen || 0) + tier.val;
     }
     return b;
 }

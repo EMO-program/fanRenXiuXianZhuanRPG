@@ -3,10 +3,12 @@ import { MAX_PLOTS, PLOT_W, PLOT_H, GARDEN_COLS, GARDEN_OX, GARDEN_OY } from './
 export const game = {
     HL: { x: 400, y: 270, spd: 220, fA: 0, wA: 0, mv: false, invT: 0, anim: { st: 'idle', tm: 0, wf: 0, atkT: 0, cd: 0, hit: false, swS: 0, swL: 0 } },
     CL: { realm: '炼气', stage: 1, exp: 0, expToNext: 60, breakRdy: false },
-    enemies: [], bullets: [], particles: [], effects: [],
+    enemies: [], bullets: [], particles: [], effects: [], lootDrops: [],
     hp: 45, mana: 82,
     sA: 0, swCnt: 12, atkBuf: 0, psnCnt: 0,
-    curS: 0, sWv: 0, totWv: 0, bSp: false, bDef: false, sClr: false,
+    curS: 0, curStageId: 'qxWaiMen', sWv: 0, totWv: 0, bSp: false, bDef: false, sClr: false,
+    bossRushMode: false, bossRushSD: null,
+    mapSel: [0, 0, 0], mapLevel: 0,
     waveReady: false, inventoryFrom: 'cave',
     ntf: '', ntfT: 0, gameOver: false,
     gameMode: 'battle',
@@ -43,10 +45,22 @@ export const game = {
     saveConfirm: -1,
     saveMode: '',
     tribTimer: 0, tribBoltCD: 0, tribBolts: [], tribSurviveT: 0,
-    tribPending: false
+    tribPending: false,
+    tribRealm: '',
+    townSel: 0,
+    debugMode: false,
+    debugSel: 0,
+    debugInput: '',
+    breakPrompt: false,
+    breakSel: 0,
+    breakFromCave: false,
+    invScrollY: 0,
+    shopScrollY: 0,
+    hubScrollY: 0,
+    titleScrollY: 0
 };
 
 for (let i = 0; i < MAX_PLOTS; i++) {
     const r = Math.floor(i / GARDEN_COLS), c = i % GARDEN_COLS;
-    game.cavePlots.push({ x: GARDEN_OX + c * (PLOT_W + 16), y: GARDEN_OY + r * (PLOT_H + 30), planted: null, gr: 0, watered: false, waterAnm: 0, waterCooldown: 0, unlocked: i < 2 });
+    game.cavePlots.push({ x: GARDEN_OX + c * (PLOT_W + 16), y: GARDEN_OY + r * (PLOT_H + 30), planted: null, gr: 0, waterAnm: 0, waterCooldown: 0, unlocked: i < 2 });
 }

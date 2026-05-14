@@ -17,10 +17,18 @@ export const REALMS = {
 };
 // ===== 天劫配置 =====
 export const TRIBULATION = {
-    筑基: { duration: 10, boltSpd: 280, boltDmg: 12, boltGap: 0.3, boltsPer: 1 },
-    结丹: { duration: 13, boltSpd: 340, boltDmg: 20, boltGap: 0.25, boltsPer: 2 },
-    元婴: { duration: 15, boltSpd: 400, boltDmg: 30, boltGap: 0.2, boltsPer: 2 },
-    化神: { duration: 18, boltSpd: 460, boltDmg: 45, boltGap: 0.15, boltsPer: 3 },
+    筑基: { duration: 12, boltSpd: 320, boltDmg: 14, boltGap: 0.22, boltsPer: 2, sideBolts: 1 },
+    结丹: { duration: 16, boltSpd: 380, boltDmg: 24, boltGap: 0.16, boltsPer: 3, sideBolts: 2 },
+    元婴: { duration: 20, boltSpd: 440, boltDmg: 35, boltGap: 0.12, boltsPer: 4, sideBolts: 2 },
+    化神: { duration: 25, boltSpd: 520, boltDmg: 50, boltGap: 0.08, boltsPer: 5, sideBolts: 3 },
+};
+
+// ===== 进阶配置 =====
+export const BREAKTHROUGH = {
+    筑基: { items: ['筑基丹'], desc: '服用筑基丹冲击筑基', icon: '💊' },
+    结丹: { tech: 'triRevolve', techName: '三转重元功', desc: '三转重元功圆满·凝结金丹', icon: '☯' },
+    元婴: { items: ['补天丹', '九曲灵参丹', '养魂木'], desc: '三宝齐聚·碎丹成婴', icon: '✨' },
+    化神: { items: ['元磁神山', '金蛟王内丹', '五色极寒之焰'], desc: '三大至宝·化神飞升', icon: '�' },
 };
 
 // ===== 技能配置 =====
@@ -28,7 +36,7 @@ export const SKILLS = [
     { id: 'fireball', name: '火球术', mana: 15, cd: 2, desc: '向鼠标方向射出火球', keys: ['Digit1'], cl: '#ff6030' },
     { id: 'flyingSwords', name: '飞剑术', mana: 40, cd: 8, desc: '周身飞剑齐射', keys: ['Digit2'], cl: '#40c060' },
     { id: 'shield', name: '金刚罩', mana: 30, cd: 10, desc: '3秒内无敌', keys: ['Digit3'], cl: '#ffd700' },
-    { id: 'greatSword', name: '巨剑术', mana: 50, cd: 25, desc: '剑化3倍·20秒·伤害范围大增', keys: ['Digit4'], cl: '#ff8040' },
+    { id: 'greatSword', name: '巨剑术', mana: 50, cd: 25, desc: '向鼠标方向射出巨型剑气', keys: ['Digit4'], cl: '#ff8040' },
 ];
 export const RNAMES = ['炼气', '筑基', '结丹', '元婴', '化神'];
 export const S3 = ['初期', '中期', '后期'];
@@ -50,103 +58,244 @@ export function rsStats(r, s) {
     };
 }
 
-// ===== 关卡配置 =====
-export const STAGES = [
-    { name: '七玄门', sub: '初入修仙', env: '#1a2a10', env2: '#0a1a08', waves: 5, boss: { name: '墨大夫（莫居仁）', hp: 80, atk: 8, size: 24, exp: 200,
-      pre: [
-        { speaker: 'narr', text: '韩立穿过七玄门密道，推开一扇厚重的铁门。昏暗的密室中，墨大夫负手而立，背对着门口。' },
-        { speaker: 'boss', text: '韩立，你终于来了。为师等你很久了。' },
-        { speaker: 'boss', text: '你一定很好奇，为何为师一介凡人之躯，却能在这七玄门中呼风唤雨吧？' },
-        { speaker: 'boss', text: '老夫墨居仁，本是岚州一散修，因修炼毒功伤了根基，肉身日渐衰朽。' },
-        { speaker: 'boss', text: '长春功，乃是专门为夺舍而准备的功法。这些年来为师悉心传授于你，为的便是今日——取你这具年轻的身体，再续仙路！' },
-        { speaker: 'boss', text: '不要怪为师心狠。修仙之路，本就是弱肉强食。来吧，让为师看看你这些年究竟学了多少本事！' }
-      ],
-      post: [
-        { speaker: 'narr', text: '墨大夫口吐鲜血，颓然倒地。他挣扎着抬起头，脸上闪过一丝不甘，旋即化为释然的苦笑。' },
-        { speaker: 'boss', text: '好...好小子...咳咳...为师确实...小看你了...' },
-        { speaker: 'boss', text: '人生苦短，终归尘土。凭什么仙家就可以遨游天地，而我等凡人只能做这井底之蛙...' },
-        { speaker: 'boss', text: '韩立...这世间多少好景色，你就...代为师去看看吧...' },
-        { speaker: 'narr', text: '言罢，气绝。一卷泛黄手札从袖中滑落——墨大夫毕生的毒术与医术心得。' }
-      ] } },
-    { name: '血色禁地', sub: '墨蛟之窟', env: '#1a0a0a', env2: '#0a0505', waves: 7, boss: { name: '墨蛟', hp: 200, atk: 18, size: 30, exp: 500,
-      pre: [
-        { speaker: 'narr', text: '血色禁地深处，腥风扑面。洞窟深处盘踞着一头身长十余丈的漆黑蛟龙，双眼如同两盏血红灯笼。' },
-        { speaker: 'boss', text: '人类修士...胆敢闯入本座的巢穴...' },
-        { speaker: 'boss', text: '此处乃上古龙族埋骨之地，你脚下的每一寸泥土都浸染着龙血。千年以来，你是第二个活着走到这里的人。' },
-        { speaker: 'boss', text: '第一个已是百年前的事了，他的血肉让本座沉睡了百年。如今，你也来做本座的血食吧！' }
-      ],
-      post: [
-        { speaker: 'narr', text: '墨蛟庞大的身躯轰然倒塌，黑血汩汩流出，蛟目中猩红的光芒逐渐熄灭。' },
-        { speaker: 'boss', text: '想不到...本座修行八百载...竟败在一个炼气期修士手中...' },
-        { speaker: 'narr', text: '蛟尸旁，一颗龙眼大小的墨色蛟丹微微发光，散发着浓郁的灵力。' }
-      ] } },
-    { name: '黄风谷', sub: '妖兽横行', env: '#1a1a0a', env2: '#0a0a05', waves: 8, boss: { name: '金蛟', hp: 350, atk: 30, size: 28, exp: 800,
-      pre: [
-        { speaker: 'narr', text: '黄风谷狂风怒号，飞沙走石。悬崖之上，一条通体金黄的蛟龙盘踞于怪石之间，竖瞳中透着古老的威严。' },
-        { speaker: 'boss', text: '修士，停下脚步。你身上有墨蛟一族的气息...看来我那不成器的族弟已经死在你手上了。' },
-        { speaker: 'boss', text: '我金蛟一族被囚于此谷已三千年，便是为了守护这谷中的上古遗宝。历代闯入者，无一生还。' },
-        { speaker: 'boss', text: '你若能击败我，遗宝自可拿去。但你若败了，便化作这谷中的黄土吧。' }
-      ],
-      post: [
-        { speaker: 'narr', text: '金蛟的金色鳞甲片片碎裂，它仰天长啸，声震四野，庞大的身躯缓缓倒下。' },
-        { speaker: 'boss', text: '三千年...终于解脱了...多谢你，修士...遗宝就在谷底石碑之后...' },
-        { speaker: 'narr', text: '金蛟化作漫天金光散去，唯有一枚逆鳞飘落掌心——温热，如同心跳。' }
-      ] } },
-    { name: '乱星海', sub: '虚天殿', env: '#0a0a1a', env2: '#05050a', waves: 10, boss: { name: '万天明', hp: 600, atk: 50, size: 26, exp: 1400,
-      pre: [
-        { speaker: 'narr', text: '虚天殿深处阴风阵阵，一个枯瘦的身影端坐于白骨王座之上。正是天煞宗宗主——万天明。' },
-        { speaker: 'boss', text: '呵呵...又来一个不知死活的小辈。你可知道，乱星海是什么地方？' },
-        { speaker: 'boss', text: '这里是正魔两道之外的无法之地，能在乱星海立足的，哪一个手上不是沾满了鲜血？' },
-        { speaker: 'boss', text: '老夫在这虚天殿中修炼百年，已将天煞真经炼至大成。韩立，今日便是你的死期！' }
-      ],
-      post: [
-        { speaker: 'narr', text: '万天明的骨杖断为两截，他跪倒在地，天煞魔气如潮水般四散。' },
-        { speaker: 'boss', text: '老夫纵横乱星海百余年...想不到竟败在一个结丹小辈手上...' },
-        { speaker: 'boss', text: '韩立...虚天殿的传承你可以拿去。但你记住——杀了天煞宗宗主，整个乱星海的魔道修士都不会放过你...' },
-        { speaker: 'narr', text: '万天明的身影化作一缕黑烟，消散在虚天殿的幽暗之中。' }
-      ] } },
-    { name: '坠魔谷', sub: '魔气滔天', env: '#0a1a1a', env2: '#050a0a', waves: 12, boss: { name: '元刹圣祖', hp: 1000, atk: 80, size: 32, exp: 2400,
-      pre: [
-        { speaker: 'narr', text: '坠魔谷深处，魔气浓郁得几乎凝成实质。一尊巨大的魔影从深渊中缓缓浮起，周身缭绕着漆黑的魔焰。' },
-        { speaker: 'boss', text: '哈哈哈哈哈！多少年了？终于有人能走到这里来！' },
-        { speaker: 'boss', text: '本座乃古魔界元刹圣祖的一缕分神，被上古修士封印在此。如今封印松动，正是本座重见天日之时！' },
-        { speaker: 'boss', text: '小辈，你身上的灵力虽然微薄，倒也纯净。献出你的元婴，本座可以让你少受些痛苦。' },
-        { speaker: 'boss', text: '不识抬举！也罢，就用你的血肉来祭本座的魔功，庆祝这万年之后的重生！' }
-      ],
-      post: [
-        { speaker: 'narr', text: '元刹圣祖的魔躯崩裂，他的元神在虚空中扭曲咆哮，魔气四散奔涌。' },
-        { speaker: 'boss', text: '不——不可能！本座堂堂古魔，怎会败给一个下界的小修士！！' },
-        { speaker: 'boss', text: '韩立——你给本座记住！封印未解，这只是本座一缕分神而已。待本座真身脱困之日，便是你的死期！' },
-        { speaker: 'narr', text: '话音未落，坠魔谷的封印之力将残魂吸入深渊。一切归于寂静，唯余魔气缓缓消散。' }
-      ] } },
-    { name: '玄天殿', sub: '仙魔交锋', env: '#1a0a1a', env2: '#0a050a', waves: 14, boss: { name: '呼老魔', hp: 1600, atk: 120, size: 30, exp: 4000,
-      pre: [
-        { speaker: 'narr', text: '玄天殿中，一位身披黑袍的老者端坐于大殿中央。周身萦绕着浓郁如墨的魔气，气息深沉得令人窒息。' },
-        { speaker: 'boss', text: '哦？又有人来了...老夫在此枯坐三百年，骨头都快生锈了。' },
-        { speaker: 'boss', text: '老夫姓呼，世人都叫我呼老魔。三百年前我以一己之力屠灭正道三宗，被尊为魔道第一人。' },
-        { speaker: 'boss', text: '小子，你身上似乎有几分大衍诀的气息...哼，若非老夫当年被那大衍神君暗算，怎会被困于此！' },
-        { speaker: 'boss', text: '来吧！让老夫看看，你比三百年前的那些正道修士，强了多少！' }
-      ],
-      post: [
-        { speaker: 'narr', text: '呼老魔的魔气终于散尽，苍老的面容首次露出平和之色。' },
-        { speaker: 'boss', text: '三百年...终于可以歇歇了...小子，你叫什么名字？' },
-        { speaker: 'han', text: '晚辈韩立。' },
-        { speaker: 'boss', text: '韩立...好名字。你可知老夫最后悔的是什么？不是败给大衍神君，而是这一生，杀伐太重，忘了修道本心...' },
-        { speaker: 'narr', text: '呼老魔合上双眼，身躯化为漫天飞灰，一本泛黄的大衍诀心得掉落出来。' }
-      ] } },
-    { name: '昆吾山', sub: '镇魔塔', env: '#0a0a0a', env2: '#050505', waves: 16, boss: { name: '元刹圣祖分魂', hp: 3000, atk: 200, size: 36, exp: 10000,
-      pre: [
-        { speaker: 'narr', text: '昆吾山顶，镇魔塔轰然崩塌。一尊漆黑如墨的巨大魔影破塔而出，滔天魔气遮天蔽日。' },
-        { speaker: 'boss', text: '韩立...我们又见面了。坠魔谷一别，本座可是时时刻刻都在念着你啊。' },
-        { speaker: 'boss', text: '这是本座最强大的分魂，与昆吾山地脉相连。坠魔谷那次，你不过是胜了本座一缕残魂而已。' },
-        { speaker: 'boss', text: '镇魔塔困了我百年——如今此塔已碎，整个昆吾山的地脉之力都在本座的掌控之中！' },
-        { speaker: 'boss', text: '今日，便让你见识见识，真正的古魔之力！这一次，再没有封印可以救你！' }
-      ],
-      post: [
-        { speaker: 'narr', text: '元刹圣祖的分魂彻底溃散，漫天黑雾被昆吾山的天地灵气逐渐净化，化作虚无。' },
-        { speaker: 'boss', text: '不——这不可能——本座与地脉相连——怎会被区区一个下界修士——' },
-        { speaker: 'narr', text: '虚空中传来元刹圣祖最后的哀嚎。一缕极其精纯的魂力自崩溃的魔气中逸出，飘入你的体内——这是古魔万年修为的精华所化。' }
-      ] } },
+// ===== 地图系统 =====
+// WORLD_MAP: 一级→二级→三级 树形结构，叶子节点为可游玩关卡
+// unlock: null=无条件, { realm, items, clear } 任一条件满足即可
+const _stages = [];
+function _s(node, parentId) {
+    if (node.stage) {
+        node.stage.id = node.id;
+        node.stage.worldParent = parentId;
+        _stages.push(node.stage);
+    }
+    if (node.children) for (const c of node.children) _s(c, node.id);
+}
+export const WORLD_MAP = [
+    { id: 'tianNan', name: '天南大陆', desc: '天南·越国修仙界', cl: '#60c060', children: [
+        { id: 'qiXuan', name: '七玄门', desc: '岚州小派·墨大夫藏身之处', cl: '#80a060', children: [
+            { id: 'qxWaiMen', name: '外门', desc: '外门弟子修炼地', unlock: null, stage: { name: '七玄门·外门', env: '#1a2a10', env2: '#0a1a08', waves: 3, dropQX: true } },
+            { id: 'qxMiDao', name: '密道', desc: '通往墨大夫密室', unlock: { clear: ['qxWaiMen'] }, chest: { stones: [30,60] }, stage: { name: '七玄门·密道', env: '#0a1a08', env2: '#050a03', waves: 4, dropQX: true } },
+            { id: 'qxMiShi', name: '密室', desc: '墨大夫藏身之处', unlock: { realm: '炼气', realmStage: 3, clear: ['qxMiDao'] }, stage: { name: '七玄门·密室', env: '#0a0a08', env2: '#050508', waves: 5, boss: { name: '墨大夫（莫居仁）', hp: 80, atk: 8, size: 24, exp: 200, drops: ['墨大夫手札'],
+              pre: [
+                { speaker: 'narr', text: '韩立穿过七玄门密道，推开一扇厚重的铁门。昏暗的密室中，墨大夫负手而立，背对着门口。' },
+                { speaker: 'boss', text: '韩立，你终于来了。为师等你很久了。' },
+                { speaker: 'boss', text: '你一定很好奇，为何为师一介凡人之躯，却能在这七玄门中呼风唤雨吧？' },
+                { speaker: 'boss', text: '老夫墨居仁，本是岚州一散修，因修炼毒功伤了根基，肉身日渐衰朽。' },
+                { speaker: 'boss', text: '长春功，乃是专门为夺舍而准备的功法。这些年来为师悉心传授于你，为的便是今日——取你这具年轻的身体，再续仙路！' },
+                { speaker: 'boss', text: '不要怪为师心狠。修仙之路，本就是弱肉强食。来吧，让为师看看你这些年究竟学了多少本事！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '墨大夫口吐鲜血，颓然倒地。他挣扎着抬起头，脸上闪过一丝不甘，旋即化为释然的苦笑。' },
+                { speaker: 'boss', text: '好...好小子...咳咳...为师确实...小看你了...' },
+                { speaker: 'boss', text: '人生苦短，终归尘土。凭什么仙家就可以遨游天地，而我等凡人只能做这井底之蛙...' },
+                { speaker: 'boss', text: '韩立...这世间多少好景色，你就...代为师去看看吧...' },
+                { speaker: 'narr', text: '言罢，气绝。一卷泛黄手札从袖中滑落——墨大夫毕生的毒术与医术心得。' }
+              ] } } },
+        ] },
+        { id: 'huangFeng', name: '黄枫谷', desc: '越国修仙大派', cl: '#c0a040', unlock: { realm: '炼气', clear: ['qxMiShi'], items: ['墨大夫手札', '升仙令'] }, children: [
+            { id: 'hfWaiWei', name: '外围山林', desc: '谷外妖兽出没', stage: { name: '黄枫谷·外围山林', env: '#1a1a0a', env2: '#0a0a05', waves: 5 } },
+            { id: 'hfShiLian', name: '试炼之路', desc: '入谷试炼', unlock: { clear: ['hfWaiWei'] }, chest: { stones: [50,100] }, stage: { name: '黄枫谷·试炼之路', env: '#2a2a0a', env2: '#1a1a05', waves: 6 } },
+            { id: 'hfxueSe', name: '血色禁地', desc: '墨蛟之窟', unlock: { clear: ['hfShiLian'] }, stage: { name: '黄枫谷·血色禁地', env: '#1a0a0a', env2: '#0a0505', waves: 7, boss: { name: '墨蛟', hp: 200, atk: 18, size: 30, exp: 500, drops: ['筑基丹'],
+              pre: [
+                { speaker: 'narr', text: '血色禁地深处，腥风扑面。洞窟深处盘踞着一头身长十余丈的漆黑蛟龙，双眼如同两盏血红灯笼。' },
+                { speaker: 'boss', text: '人类修士...胆敢闯入本座的巢穴...' },
+                { speaker: 'boss', text: '此处乃上古龙族埋骨之地，你脚下的每一寸泥土都浸染着龙血。千年以来，你是第二个活着走到这里的人。' },
+                { speaker: 'boss', text: '第一个已是百年前的事了，他的血肉让本座沉睡了百年。如今，你也来做本座的血食吧！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '墨蛟庞大的身躯轰然倒塌，黑血汩汩流出，蛟目中猩红的光芒逐渐熄灭。' },
+                { speaker: 'boss', text: '想不到...本座修行八百载...竟败在一个炼气期修士手中...' },
+                { speaker: 'narr', text: '蛟尸旁，一颗龙眼大小的墨色蛟丹微微发光，散发着浓郁的灵力。' }
+              ] } } },
+        ] },
+        { id: 'zhengMo', name: '正魔大战战场', desc: '正道魔道交锋之地', cl: '#c06040', unlock: { realm: '筑基', clear: ['hfxueSe'] }, children: [
+            { id: 'zmQianYan', name: '前沿阵地', desc: '双方交战边缘', stage: { name: '战场·前沿阵地', env: '#1a1a0a', env2: '#0a0a05', waves: 6 } },
+            { id: 'zmShiGu', name: '尸骨之地', desc: '古修士遗骸遍布', unlock: { clear: ['zmQianYan'] }, chest: { stones: [80,150] }, stage: { name: '战场·尸骨之地', env: '#0a0808', env2: '#050404', waves: 7 } },
+            { id: 'zmHeXin', name: '核心地带', desc: '两军主帅交锋处', unlock: { clear: ['zmShiGu'] }, stage: { name: '战场·核心地带', env: '#1a0a0a', env2: '#0a0505', waves: 8, boss: { name: '鬼灵门少主·王婵', hp: 350, atk: 35, size: 26, exp: 800, drops: ['大挪移传送令'],
+              pre: [
+                { speaker: 'narr', text: '战场核心地带，尸横遍野。一个身穿黑袍的青年负手立于尸山之上，周身鬼气森森。' },
+                { speaker: 'boss', text: '哦？居然还有人能走到这里来。正道？魔道？不过都是本少的垫脚石罢了。' },
+                { speaker: 'boss', text: '我乃鬼灵门少主王婵。奉家父之命来此战场搜集生魂，修练万魂经。正魔大战？呵，本少不关心。' },
+                { speaker: 'boss', text: '不过你的魂魄倒是颇为精纯...拿来炼成主魂再好不过！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '王婵的护体鬼气轰然破碎，他踉跄后退，脸上终于露出惊惧之色。' },
+                { speaker: 'boss', text: '不...不可能！本少的万魂经已炼至第四层，怎会败给你？！' },
+                { speaker: 'boss', text: '可恶...若非此战消耗太大...你给本少记住！鬼灵门不会放过你的！' },
+                { speaker: 'narr', text: '王婵捏碎一枚传送符，身形消散。一枚大挪移传送令从他消失之处掉落——乱星海的通行凭证！' }
+              ] } } },
+        ] },
+        { id: 'luoYun', name: '落云宗', desc: '天南第一剑宗', cl: '#60a0ff', unlock: { realm: '结丹', realmStage: 3, items: ['风雷翅'], clear: ['lxWaiHai'] }, children: [
+            { id: 'lyShanMen', name: '山门', desc: '落云宗山脚', stage: { name: '落云宗·山门', env: '#0a1a2a', env2: '#050a1a', waves: 8 } },
+            { id: 'lyGuXiu', name: '古修遗府', desc: '古修士洞府', unlock: { clear: ['lyShanMen'] }, stage: { name: '落云宗·古修遗府', env: '#0a0a1a', env2: '#05050a', waves: 9, boss: { name: '古修残魂', hp: 600, atk: 55, size: 26, exp: 1400 } } },
+        ] },
+    ] },
+    { id: 'lx', name: '乱星海', desc: '海外修士·无法之地', cl: '#4080ff', unlock: { realm: '筑基', realmStage: 3, items: ['大挪移传送令'] }, children: [
+        { id: 'lxQianHai', name: '浅海', desc: '乱星海入口', stage: { name: '乱星海·浅海', env: '#0a0a1a', env2: '#05050a', waves: 3 } },
+        { id: 'lxJiYin', name: '极阴岛', desc: '极阴老祖巢穴', unlock: { realm: '结丹', clear: ['lxQianHai'] }, children: [
+            { id: 'lxjyDaoAn', name: '岛岸', desc: '极阴岛外围', stage: { name: '极阴岛·岛岸', env: '#0a0a0a', env2: '#050505', waves: 7 } },
+            { id: 'lxjyDongKu', name: '极阴洞窟', desc: '极阴老祖隐修处', unlock: { clear: ['lxjyDaoAn'] }, stage: { name: '极阴岛·洞窟', env: '#0a0a0a', env2: '#000000', waves: 9, escape: '虚天残图', boss: { name: '极阴老祖', hp: 500, atk: 45, size: 28, exp: 1200,
+              pre: [
+                { speaker: 'narr', text: '极阴岛深处，洞窟中黑雾弥漫。一道苍老阴森的身影悬浮在洞窟中央，正是极阴老祖。' },
+                { speaker: 'boss', text: '桀桀桀...多少年了，竟有生人闯入本座洞府。小辈，你胆子不小嘛。' },
+                { speaker: 'boss', text: '本座极阴老祖，纵横乱星海五百余年。你的修为虽浅，但这具肉身倒是不错...' },
+                { speaker: 'boss', text: '既然来了，就别走了！留下来做本座的新躯壳吧！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '极阴老祖的鬼雾被打散，你趁机夺路而逃。身后传来极阴老祖愤怒的咆哮。' },
+                { speaker: 'boss', text: '混账！！竟敢从本座手中逃脱！' },
+                { speaker: 'narr', text: '你冲出洞窟时，一道残破的古老地图从壁缝落入手中——虚天残图！上面标记着虚天殿的位置。' }
+              ] } } },
+        ] },
+        { id: 'lxXuTian', name: '虚天殿', desc: '上古修士遗府', cl: '#a0a0ff', unlock: { realm: '结丹', items: ['虚天残图'] }, children: [
+            { id: 'lxxtWaiDian', name: '外殿', desc: '虚天殿外围', stage: { name: '虚天殿·外殿', env: '#1a0a1a', env2: '#0a050a', waves: 9 } },
+            { id: 'lxxtNeiDian', name: '内殿', desc: '玄骨上人镇守', unlock: { clear: ['lxxtWaiDian'] }, stage: { name: '虚天殿·内殿', env: '#1a0a1a', env2: '#0a050a', waves: 10, boss: { name: '玄骨上人', hp: 800, atk: 70, size: 28, exp: 2000, drops: ['虚天鼎', '补天丹', '九曲灵参丹'],
+              pre: [
+                { speaker: 'narr', text: '虚天殿内殿，一股远古蛮荒的气息扑面而来。白骨宝座上，一道骷髅般的身影缓缓站起。' },
+                { speaker: 'boss', text: '多少年了...终于有人能走到这里。本座玄骨上人，曾是上古体修第一人。' },
+                { speaker: 'boss', text: '肉身已毁，但本座的元神与这虚天殿早已合为一体。任何闯入者，都将是本座的养料！' },
+                { speaker: 'boss', text: '虚天鼎乃是本座毕生心血所炼。你想要？那就用命来换吧！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '玄骨上人的白骨身躯轰然碎裂，一道远古的禁制随之崩解。' },
+                { speaker: 'boss', text: '这...这怎么可能...本座的元神与虚天殿相连...' },
+                { speaker: 'narr', text: '虚天鼎从玄骨上人身上掉落，古铜色的鼎身散发微弱的光芒——这是通往极北之地的凭证。' }
+              ] } } },
+        ] },
+        { id: 'lxWaiHai', name: '外星海', desc: '羽族栖息之地', cl: '#40a0a0', unlock: { realm: '结丹', clear: ['lxQianHai'] }, children: [
+            { id: 'lxwhWaiWei', name: '外围', desc: '外星海浅海区域', stage: { name: '外星海·外围', env: '#0a1a2a', env2: '#050a1a', waves: 8 } },
+            { id: 'lxwhShenHai', name: '深海裂隙', desc: '羽族大妖风希巢穴', unlock: { clear: ['lxwhWaiWei'] }, stage: { name: '外星海·深海裂隙', env: '#0a0a2a', env2: '#05051a', waves: 9, boss: { name: '羽族大妖·风希', hp: 700, atk: 60, size: 30, exp: 1800, drops: ['风雷翅'],
+              pre: [
+                { speaker: 'narr', text: '外星海深处，海水分向两侧，一道巨大的裂隙通向地底。裂口之上，银色双翼的身影缓缓降落。' },
+                { speaker: 'boss', text: '人类修士...你身上有天南大陆的气息。能从那么远的地方来到这里，不容易。' },
+                { speaker: 'boss', text: '本座风希，羽族之王。风雷翅乃是吾族千年传承之宝，吾便是为守护它而在此。' },
+                { speaker: 'boss', text: '想要风雷翅？可以，只要你能接下本座的雷霆一击！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '风希的银色羽翼光芒黯淡，他跌落在地，神色复杂地看着你。' },
+                { speaker: 'boss', text: '好...好小子。这风雷翅，是你的了。但记住——没有结丹后期的修为，强行使用会爆体而亡。' },
+                { speaker: 'narr', text: '风雷翅缓缓飘入你的手中，一对银白色的羽翼，蕴含着狂暴的风雷之力。' }
+              ] } } },
+            { id: 'lxwhShenChu', name: '深处', desc: '金蛟王巢穴', unlock: { realm: '元婴', clear: ['lxwhShenHai'] }, stage: { name: '外星海·深处', env: '#0a0a1a', env2: '#050510', waves: 13, boss: { name: '金蛟王', hp: 3000, atk: 190, size: 36, exp: 7000, drops: ['金蛟王内丹'],
+              pre: [
+                { speaker: 'narr', text: '外星海最深处，海水漆黑如墨。一道硕大无比的金色蛟影自深渊中缓缓升起，双瞳如两轮金日。' },
+                { speaker: 'boss', text: '人类...汝竟敢闯入吾之领地。千年来，你是第一个活着抵达此处之人。' },
+                { speaker: 'boss', text: '吾乃金蛟王，龙族旁支。这颗内丹随吾修炼千年，已凝天地之造化。' },
+                { speaker: 'boss', text: '既来了，就让吾看看汝是否有本事取走它！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '金蛟王庞大的身躯轰然坠海，溅起万丈巨浪。一颗金光璀璨的内丹自蛟口中吐出。' },
+                { speaker: 'boss', text: '这颗内丹...随吾千年...今日便赠予汝吧...记住本座之名！' },
+                { speaker: 'narr', text: '金蛟王内丹落入你手——其中蕴含着浩瀚的龙族灵气，炽热无比。' }
+              ] } } },
+        ] },
+        { id: 'lxTianXing', name: '天星城', desc: '乱星海核心', cl: '#ffd700', unlock: { realm: '元婴', clear: ['lxxtNeiDian'] }, children: [
+            { id: 'lxtxFangShi', name: '坊市', desc: '天星城交易中心', stage: { name: '天星城·坊市', env: '#1a1a0a', env2: '#0a0a05', waves: 0 } },
+            { id: 'lxtxMiKu', name: '密库', desc: '城中秘宝', unlock: { clear: ['lxtxFangShi'] }, chest: { items: ['培元丹', '培元丹', '凝元丹'] }, stage: { name: '天星城·密库', env: '#2a2a0a', env2: '#1a1a05', waves: 0 } },
+            { id: 'lxtxXingGong', name: '星宫', desc: '星宫双圣镇守', cl: '#c0a0ff', unlock: { realm: '元婴', clear: ['lxtxMiKu'] }, children: [
+                { id: 'lxtxDingBu', name: '顶部', desc: '天星双圣', unlock: { clear: ['lxtxMiKu'] }, stage: { name: '星宫·顶部', env: '#0a0a2a', env2: '#05051a', waves: 12, boss: { name: '天星双圣', hp: 2500, atk: 180, size: 32, exp: 6000, drops: ['元磁神山'],
+                  pre: [
+                    { speaker: 'narr', text: '星宫殿顶，星光如瀑。天星双圣并肩立于穹顶之下，周身星芒流转，宛若日月同辉。' },
+                    { speaker: 'boss', text: '乱星海多少年未曾有人能踏足此地。你既能到此处，想必已非凡俗之辈。' },
+                    { speaker: 'boss', text: '吾二人镇守星宫千年，只为守护这元磁神山——星海之源。想要？先胜过本座再说！' }
+                  ],
+                  post: [
+                    { speaker: 'narr', text: '天星双圣的星芒法阵崩解，二人嘴角溢血，相视一笑，退至一旁。' },
+                    { speaker: 'boss', text: '好...后生可畏。元磁神山归你了——不过化神之路，远比你想象的更加凶险。' },
+                    { speaker: 'narr', text: '元磁神山缓缓落入你手中——如同一座微缩的山岳，蕴含着不可思议的磁力。' }
+                  ] } } },
+            ] },
+        ] },
+    ] },
+    { id: 'muLan', name: '幕兰/天澜草原', desc: '草原部落·天澜圣女', cl: '#c0c040', unlock: { realm: '元婴', clear: ['lyGuXiu'] }, children: [
+        { id: 'mlZhanChang', name: '幕兰大战战场', desc: '草原第一战场', stage: { name: '幕兰战场', env: '#2a2a0a', env2: '#1a1a05', waves: 10, boss: { name: '幕兰大法师', hp: 1200, atk: 90, size: 30, exp: 3000 } } },
+        { id: 'tlShengDi', name: '天澜圣地', desc: '天澜圣女居所', unlock: { realm: '元婴', clear: ['mlZhanChang'] }, stage: { name: '天澜圣地', env: '#0a1a0a', env2: '#050a05', waves: 12, boss: { name: '天澜圣女', hp: 1600, atk: 110, size: 28, exp: 4000 } } },
+    ] },
+    { id: 'daJin', name: '大晋', desc: '魔道宗门·昆吾之巅', cl: '#a040a0', unlock: { realm: '元婴', clear: ['tlShengDi'] }, children: [
+        { id: 'djYinLuo', name: '阴罗宗', desc: '大晋第一魔宗', children: [
+            { id: 'djylWaiZong', name: '外宗', desc: '阴罗宗外围', stage: { name: '阴罗宗·外宗', env: '#1a0a1a', env2: '#0a050a', waves: 10 } },
+            { id: 'djylDiLao', name: '地牢', desc: '阴罗宗囚牢', unlock: { clear: ['djylWaiZong'] }, chest: { stones: [150,300] }, stage: { name: '阴罗宗·地牢', env: '#0a0a0a', env2: '#050505', waves: 11 } },
+            { id: 'djylDaDian', name: '大殿', desc: '阴罗宗宗主坐镇', unlock: { clear: ['djylDiLao'] }, stage: { name: '阴罗宗·大殿', env: '#0a0a0a', env2: '#000000', waves: 14, boss: { name: '阴罗宗宗主', hp: 2000, atk: 150, size: 32, exp: 5000, drops: ['昆吾玉卷'] } } },
+        ] },
+        { id: 'djKunWu', name: '昆吾山', desc: '镇魔塔·元刹分魂', cl: '#ff40ff', unlock: { realm: '元婴', items: ['昆吾玉卷'] }, children: [
+            { id: 'djkwShanJiao', name: '山脚', desc: '昆吾山入口', stage: { name: '昆吾山·山脚', env: '#0a0a0a', env2: '#050505', waves: 14 } },
+            { id: 'djkwZhenMo', name: '镇魔塔', desc: '元刹圣祖分魂', unlock: { clear: ['djkwShanJiao'] }, stage: { name: '昆吾山·镇魔塔', env: '#0a0a0a', env2: '#000000', waves: 16, boss: { name: '元刹圣祖分魂', hp: 3000, atk: 200, size: 36, exp: 10000,
+              pre: [
+                { speaker: 'narr', text: '昆吾山顶，镇魔塔轰然崩塌。一尊漆黑如墨的巨大魔影破塔而出，滔天魔气遮天蔽日。' },
+                { speaker: 'boss', text: '韩立...我们又见面了。坠魔谷一别，本座可是时时刻刻都在念着你啊。' },
+                { speaker: 'boss', text: '这是本座最强大的分魂，与昆吾山地脉相连。坠魔谷那次，你不过是胜了本座一缕残魂而已。' },
+                { speaker: 'boss', text: '镇魔塔困了我百年——如今此塔已碎，整个昆吾山的地脉之力都在本座的掌控之中！' },
+                { speaker: 'boss', text: '今日，便让你见识见识，真正的古魔之力！这一次，再没有封印可以救你！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '元刹圣祖的分魂彻底溃散，漫天黑雾被昆吾山的天地灵气逐渐净化，化作虚无。' },
+                { speaker: 'boss', text: '不——这不可能——本座与地脉相连——怎会被区区一个下界修士——' },
+                { speaker: 'narr', text: '虚空中传来元刹圣祖最后的哀嚎。一缕极其精纯的魂力自崩溃的魔气中逸出，飘入你的体内——这是古魔万年修为的精华所化。' }
+              ] } } },
+        ] },
+    ] },
+    { id: 'jiBei', name: '极北之地', desc: '冰凤镇守·小极宫', cl: '#80c0ff', unlock: { realm: '元婴', items: ['虚天鼎'] }, children: [
+        { id: 'jbBingYuan', name: '极北冰原', desc: '极北入口·冰原', stage: { name: '极北冰原', env: '#1a2a2a', env2: '#0a1a1a', waves: 6 } },
+        { id: 'jbXiaoJi', name: '小极宫', desc: '冰凤栖息之处', unlock: { realm: '元婴', clear: ['jbBingYuan'] }, children: [
+            { id: 'jbxjQianDian', name: '前殿', desc: '小极宫外围', stage: { name: '小极宫·前殿', env: '#0a1a2a', env2: '#050a1a', waves: 7 } },
+            { id: 'jbxjXuanTian', name: '玄天殿', desc: '冰凤镇守', unlock: { clear: ['jbxjQianDian'] }, stage: { name: '小极宫·玄天殿', env: '#0a1a2a', env2: '#050a1a', waves: 10, boss: { name: '冰凤', hp: 2000, atk: 160, size: 34, exp: 5000,
+              pre: [
+                { speaker: 'narr', text: '玄天殿中寒气刺骨。大殿正中，一只通体冰蓝的巨大凤凰缓缓展开双翼，冰晶般的光芒照亮了整个殿堂。' },
+                { speaker: 'boss', text: '人类...能在极北走到这里，你是第一个。吾乃冰凤，极北之主。' },
+                { speaker: 'boss', text: '虚天鼎...你身上有虚天鼎的气息。那是上古之物，与吾有千丝万缕的渊源。' },
+                { speaker: 'boss', text: '让吾看看，你是否有资格持有虚天鼎！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '冰凤发出一声清越的长鸣，冰蓝羽翼收拢。它缓缓落到你面前。' },
+                { speaker: 'boss', text: '好...你确实有资格。虚天鼎在你手中，或许比在极北更有用。' },
+                { speaker: 'narr', text: '冰凤将一道极寒灵力注入虚天鼎，古鼎泛起冰蓝色的微光——似乎在记载了什么重要的信息。' }
+              ] } } },
+            { id: 'jbxjGongDian', name: '宫殿内', desc: '寒骊上人镇守·极寒灵焰', unlock: { realm: '元婴', clear: ['jbxjXuanTian'] }, stage: { name: '小极宫·宫殿内', env: '#0a0a1a', env2: '#050510', waves: 12, boss: { name: '寒骊上人', hp: 2800, atk: 175, size: 30, exp: 6500, drops: ['五色极寒之焰'],
+              pre: [
+                { speaker: 'narr', text: '小极宫最深处，万载寒冰覆盖大殿。一道白衣身影盘坐于冰晶莲台之上，周身五色寒焰吞吐不定。' },
+                { speaker: 'boss', text: '后辈，你能走到这里，说明冰凤已认可你。但本座与它不同——吾寒骊上人，只信手中之焰。' },
+                { speaker: 'boss', text: '五色极寒之焰，极北深渊万年寒气所化。本座以此焰修行至今，尚未遇敌手。' },
+                { speaker: 'boss', text: '你若能胜过本座，此焰归你。若败——便永远留在此地陪伴吾吧！' }
+              ],
+              post: [
+                { speaker: 'narr', text: '寒骊上人的五色寒焰缓缓散去，他苦笑着望向手中熄灭的火焰。' },
+                { speaker: 'boss', text: '万年来...终于有人能熄灭这五色极寒之焰。拿去吧，这是你应得的。' },
+                { speaker: 'narr', text: '五色极寒之焰化作一道五色流光飞入你掌心——极寒与极热交织，神秘莫测。' }
+              ] } } },
+        ] },
+    ] },
+];
+_s({ children: WORLD_MAP }, '');
+export const STAGES = _stages;
+
+// ===== 关键道具 =====
+export const KEY_ITEMS = {
+    '墨大夫手札': { desc: '墨大夫毕生毒术与医术心得', icon: '📜' },
+    '升仙令': { desc: '七玄门信物·可前往黄枫谷', icon: '🪪' },
+    '大挪移传送令': { desc: '乱星海传送凭证', icon: '🔮' },
+    '风雷翅': { desc: '羽族千年传承之宝·风雷之力', icon: '🪽' },
+    '虚天残图': { desc: '标记虚天殿位置的古老残图', icon: '🗺' },
+    '虚天鼎': { desc: '上古玄骨上人毕生心血·通往极北之凭证', icon: '🏺' },
+    '昆吾玉卷': { desc: '昆吾山古道传承玉卷', icon: '📿' },
+    '筑基丹': { desc: '突破炼气瓶颈·冲击筑基', icon: '💊' },
+    '补天丹': { desc: '玄骨上人秘藏·修补灵根', icon: '🥇' },
+    '九曲灵参丹': { desc: '魂力凝丹·滋养元神', icon: '🟣' },
+    '养魂木': { desc: '上古神木·温养魂魄', icon: '🪵' },
+    '元磁神山': { desc: '天星双圣所镇·元磁至宝', icon: '⛰' },
+    '金蛟王内丹': { desc: '金蛟王千年修为结晶', icon: '🔶' },
+    '五色极寒之焰': { desc: '极北深渊·天地灵焰', icon: '🔥' },
+};
+
+const _bossTechTemp = [
+    { id: 'moYiPoison', bossStage: 'qxMiShi', name: '墨医毒经', desc: '周身毒雾·持续伤敌', realm: '炼气', cl: '#80ff00', tiers: [{ lv:1,cost:100,val:4,label:'修习·毒雾+4/秒'}], spell: '毒雾护体——周身3秒毒伤敌人', spellId: 'poisonAura' },
+    { id: 'moJiaoBlood', bossStage: 'hfxueSe', name: '墨蛟血炼', desc: '生命恢复·伤害提升', realm: '筑基', cl: '#c04040', tiers: [{ lv:1,cost:150,val:3,val2:0.12,label:'修习·回血+3/s·伤+12%'}], spell: '蛟血沸腾——每秒恢复生命并增强伤害', spellId: 'bloodRage' },
+    { id: 'wangChanSoul', bossStage: 'zmHeXin', name: '万魂经残篇', desc: '杀敌回蓝·神识增强', realm: '筑基', cl: '#6060c0', tiers: [{ lv:1,cost:180,val:30,val2:0.12,label:'修习·杀敌+30法力·伤+12%'}], spell: '魂力吞噬——击杀敌人恢复法力并提升伤害', spellId: 'soulDevour' },
+    { id: 'fengXiWing', bossStage: 'lxwhShenHai', name: '风雷翅功法', desc: '移速与伤害大增', realm: '结丹', cl: '#40e0d0', tiers: [{ lv:1,cost:250,val:0.25,val2:0.35,label:'修习·移速+25%·伤+35%'}], spell: '风雷之力——移动速度与伤害大幅提升', spellId: 'windThunder' },
+    { id: 'xuanGuBody', bossStage: 'lxxtNeiDian', name: '玄骨锻体诀', desc: '防御强化·生命大增', realm: '结丹', cl: '#d4af37', tiers: [{ lv:1,cost:250,val:0.3,val2:3,label:'修习·生命+30%·减伤+3'}], spell: '骨体强化——受击时减免伤害并反伤', spellId: 'boneArmor' },
+    { id: 'muLanMagic', bossStage: 'mlZhanChang', name: '幕兰咒法', desc: '攻击吸血', realm: '元婴', cl: '#c020c0', tiers: [{ lv:1,cost:300,val:0.15,val2:0.08,label:'修习·伤害+15%·吸血8%'}], spell: '咒法噬血——攻击时吸取敌人生命', spellId: 'lifeSteal' },
+    { id: 'tianLanGrace', bossStage: 'tlShengDi', name: '天澜圣典', desc: '全面强化', realm: '元婴', cl: '#ff40ff', tiers: [{ lv:1,cost:400,val:6,val2:0.2,label:'修习·回血+6/s·全属性+20%'}], spell: '圣典祝福——生命、攻击、法力全面增强', spellId: 'splitSoul' },
+    { id: 'yinLuoDemon', bossStage: 'djylDaDian', name: '阴罗魔典', desc: '伤害强化·法回大增', realm: '元婴', cl: '#a040a0', tiers: [{ lv:1,cost:400,val:0.25,val2:0.8,label:'修习·伤+25%·法回+80%'}], spell: '魔典真言——攻击力与法力恢复大幅提升', spellId: 'demonTome' },
+    { id: 'icePhoenix', bossStage: 'jbxjXuanTian', name: '冰凤真血', desc: '极寒护体·生命大增', realm: '元婴', cl: '#80c0ff', tiers: [{ lv:1,cost:500,val:0.4,val2:5,label:'修习·生命+40%·减伤+5'}], spell: '冰凤护体——大幅减免伤害并提升生命', spellId: 'iceGuard' },
 ];
 
 // ===== 灵草配置 =====
@@ -172,6 +321,13 @@ export const ITEMS = {
     金雷竹材: { desc: '飞剑+4', fx: 'swdUp', val: 4, cl: '#40c040' },
     回灵丹: { desc: '恢复全部法力', fx: 'mana', val: 100, cl: '#6080ff' },
     毒丹: { desc: '敌人持续毒伤', fx: 'poison', val: 10, cl: '#6040a0' },
+    筑基丹: { desc: '突破炼气瓶颈·冲击筑基', fx: 'none', cl: '#80ff80' },
+    补天丹: { desc: '玄骨上人秘藏·修补灵根', fx: 'none', cl: '#d4af37' },
+    九曲灵参丹: { desc: '魂力凝丹·滋养元神', fx: 'none', cl: '#c080ff' },
+    养魂木: { desc: '上古神木·温养魂魄', fx: 'none', cl: '#8bc34a' },
+    元磁神山: { desc: '天星双圣所镇·元磁至宝', fx: 'none', cl: '#ffd700' },
+    金蛟王内丹: { desc: '金蛟王千年修为结晶', fx: 'none', cl: '#ffa040' },
+    五色极寒之焰: { desc: '极北深渊·天地灵焰', fx: 'none', cl: '#80d0ff' },
 };
 
 // ===== 灵田配置 =====
@@ -240,28 +396,14 @@ export const TECHNIQUES = [
         { lv: 2, cost: 70, val: 0.7, label: '第二重·+70%' },
         { lv: 3, cost: 150, val: 1.2, label: '第三重·+120%' },
       ] },
+    { id: 'triRevolve', name: '三转重元功', desc: '自动回血·结丹必备', realm: '筑基', type: 'base', cl: '#ffa040',
+      tiers: [
+        { lv: 1, cost: 40, val: 1, label: '第一重·回血+1/s' },
+        { lv: 2, cost: 100, val: 2, label: '第二重·回血+2/s' },
+        { lv: 3, cost: 220, val: 3.5, label: '第三重·回血+3.5/s' },
+      ] },
     // ===== Boss特殊功法（击败对应Boss解锁） =====
-    { id: 'moYiPoison', name: '墨医毒经', desc: '周身毒雾·持续伤敌', realm: '炼气', type: 'boss', bossIdx: 0, cl: '#80ff00',
-      tiers: [{ lv: 1, cost: 100, val: 4, label: '修习·毒雾+4/秒' }],
-      spell: '毒雾护体——周身3秒毒伤敌人', spellId: 'poisonAura' },
-    { id: 'moJiaoBlood', name: '墨蛟血炼', desc: '生命恢复·伤害提升', realm: '筑基', type: 'boss', bossIdx: 1, cl: '#c04040',
-      tiers: [{ lv: 1, cost: 150, val: 3, val2: 0.12, label: '修习·回血+3/s·伤+12%' }],
-      spell: '蛟血沸腾——每秒恢复生命并增强伤害', spellId: 'bloodRage' },
-    { id: 'jinJiaoScale', name: '金蛟逆鳞', desc: '防御强化·反伤', realm: '筑基', type: 'boss', bossIdx: 2, cl: '#d4af37',
-      tiers: [{ lv: 1, cost: 150, val: 0.18, val2: 2, label: '修习·生命+18%·减伤+2' }],
-      spell: '逆鳞护体——受击时反射伤害', spellId: 'scaleReflect' },
-    { id: 'tianMingSword', name: '天明剑诀', desc: '飞剑极致强化', realm: '结丹', type: 'boss', bossIdx: 3, cl: '#40e0d0',
-      tiers: [{ lv: 1, cost: 250, val: 0.35, val2: 0.4, label: '修习·飞剑+35%速度·伤害+40%' }],
-      spell: '天明一闪——飞剑飞行速度与伤害大幅提升', spellId: 'swordSurge' },
-    { id: 'yuanShaDemon', name: '元刹魔功', desc: '攻击吸血', realm: '结丹', type: 'boss', bossIdx: 4, cl: '#c020c0',
-      tiers: [{ lv: 1, cost: 280, val: 0.15, val2: 0.08, label: '修习·伤害+15%·吸血8%' }],
-      spell: '魔功噬血——攻击时吸取敌人生命', spellId: 'lifeSteal' },
-    { id: 'huMoTrue', name: '呼魔真解', desc: '杀敌回蓝·神识增强', realm: '元婴', type: 'boss', bossIdx: 5, cl: '#6060c0',
-      tiers: [{ lv: 1, cost: 300, val: 30, val2: 0.12, label: '修习·杀敌+30法力·伤+12%' }],
-      spell: '魔魂吞噬——击杀敌人恢复法力并提升伤害', spellId: 'soulDevour' },
-    { id: 'yuanShaSplit', name: '元刹分魂诀', desc: '分身灵体·全面强化', realm: '元婴', type: 'boss', bossIdx: 6, cl: '#ff40ff',
-      tiers: [{ lv: 1, cost: 500, val: 6, val2: 0.2, label: '修习·回血+6/s·全属性+20%' }],
-      spell: '分魂化影——召唤分魂协助战斗', spellId: 'splitSoul' },
+    ..._bossTechTemp.map(bt => ({ ...bt, type: 'boss', bossStage: bt.bossStage })),
 ];
 
 // ===== 随机事件配置 =====
@@ -318,4 +460,43 @@ export const EVENTS = [
       text: '你发现一个隐秘洞窟，洞中灵气浓郁但散发着危险气息。深处似乎沉睡着什么...',
       option1: '深入探宝', result1: { stones: 150, msg: '你冒险深入，避开沉睡的妖兽，找到了不少灵石储备！', risk: 0.4 },
       option2: '谨慎离开', result2: { msg: '"此地不宜久留..."你悄然退出，记下了洞窟的位置。' } },
+];
+
+// ===== 战利品掉落表 =====
+export const LOOT_TABLES = {
+    普通: [
+        { item: 'stones', min: 1, max: 5, chance: 0.4 },
+        { item: '培元丹', min: 1, max: 1, chance: 0.08 },
+        { item: '回灵丹', min: 1, max: 1, chance: 0.05 },
+    ],
+    弓手: [
+        { item: 'stones', min: 1, max: 6, chance: 0.45 },
+        { item: '血灵丹', min: 1, max: 1, chance: 0.1 },
+        { item: '金雷竹材', min: 1, max: 1, chance: 0.06 },
+    ],
+    冲锋: [
+        { item: 'stones', min: 2, max: 8, chance: 0.5 },
+        { item: '培元丹', min: 1, max: 1, chance: 0.12 },
+        { item: '凝元丹', min: 1, max: 1, chance: 0.08 },
+    ],
+    召唤师: [
+        { item: 'stones', min: 1, max: 10, chance: 0.5 },
+        { item: '回灵丹', min: 1, max: 1, chance: 0.15 },
+        { item: '毒丹', min: 1, max: 1, chance: 0.1 },
+    ],
+    精英: [
+        { item: 'stones', min: 3, max: 12, chance: 0.6 },
+        { item: '培元丹', min: 1, max: 2, chance: 0.2 },
+        { item: '凝元丹', min: 1, max: 1, chance: 0.15 },
+        { item: '金雷竹材', min: 1, max: 1, chance: 0.1 },
+    ],
+    boss: [
+        { item: 'stones', min: 0, max: 0, chance: 0 },
+    ],
+};
+
+export const HERB_BONUS = [
+    { item: 'stones', min: 2, max: 8, chance: 0.25 },
+    { item: '培元丹', min: 1, max: 1, chance: 0.1 },
+    { item: '金雷竹材', min: 1, max: 1, chance: 0.05 },
 ];

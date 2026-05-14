@@ -8,10 +8,10 @@ function packData() {
     return {
         hp: game.hp, mana: game.mana,
         CL: { realm: game.CL.realm, stage: game.CL.stage, exp: game.CL.exp, expToNext: game.CL.expToNext, breakRdy: game.CL.breakRdy },
-        curS: game.curS, totWv: game.totWv, bSp: game.bSp, bDef: game.bDef, sClr: game.sClr,
+        curS: game.curS, curStageId: game.curStageId, mapSel: [...game.mapSel], mapLevel: game.mapLevel, totWv: game.totWv, bSp: game.bSp, bDef: game.bDef, sClr: game.sClr,
         spiritStones: game.spiritStones,
         inventory: { ...game.inventory },
-        cavePlots: game.cavePlots.map(p => ({ planted: p.planted, gr: p.gr, watered: p.watered, unlocked: p.unlocked, waterCooldown: p.waterCooldown })),
+        cavePlots: game.cavePlots.map(p => ({ planted: p.planted, gr: p.gr, unlocked: p.unlocked, waterCooldown: p.waterCooldown })),
         eSlots: { ...game.eSlots },
         bottleLiquid: game.bottleLiquid,
         swCnt: game.swCnt,
@@ -76,7 +76,7 @@ export function hasAnySave() {
 export function applySave(d) {
     game.hp = d.hp; game.mana = d.mana;
     game.CL.realm = d.CL.realm; game.CL.stage = d.CL.stage; game.CL.exp = d.CL.exp; game.CL.expToNext = d.CL.expToNext; game.CL.breakRdy = d.CL.breakRdy;
-    game.curS = d.curS; game.totWv = d.totWv; game.bSp = d.bSp; game.bDef = d.bDef; game.sClr = d.sClr;
+    game.curS = d.curS; game.curStageId = d.curStageId || 'qxWaiMen'; game.mapSel = d.mapSel || [0,0,0]; game.mapLevel = d.mapLevel || 0; game.totWv = d.totWv; game.bSp = d.bSp; game.bDef = d.bDef; game.sClr = d.sClr;
     game.spiritStones = d.spiritStones;
     game.inventory = { ...d.inventory };
     game.bottleLiquid = d.bottleLiquid || 0;
@@ -90,7 +90,6 @@ export function applySave(d) {
     for (let i = 0; i < game.cavePlots.length && i < d.cavePlots.length; i++) {
         game.cavePlots[i].planted = d.cavePlots[i].planted;
         game.cavePlots[i].gr = d.cavePlots[i].gr;
-        game.cavePlots[i].watered = d.cavePlots[i].watered;
         game.cavePlots[i].unlocked = d.cavePlots[i].unlocked;
         game.cavePlots[i].waterCooldown = d.cavePlots[i].waterCooldown || 0;
     }

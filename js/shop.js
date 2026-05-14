@@ -1,6 +1,17 @@
 import { SHOP_ITEMS } from './config.js';
 import { game } from './state.js';
 import { maxHP, maxMana, doNtf, gainExp } from './utils.js';
+import { H } from './engine.js';
+
+function autoScrollShop() {
+    const sel = game.shopSel, itemH = 56, oy = 80, viewH = H - oy - 36;
+    const maxScroll = Math.max(0, (sel + 1) * itemH - viewH);
+    let sy = game.shopScrollY || 0;
+    const top = sel * itemH, bot = top + itemH;
+    if (top < sy) sy = top;
+    else if (bot > sy + viewH) sy = bot - viewH;
+    game.shopScrollY = Math.max(0, Math.min(maxScroll, sy));
+}
 
 export function buyItem(idx) {
     const item = SHOP_ITEMS[idx];
@@ -20,6 +31,7 @@ export function enterShop(from) {
     game.gameMode = 'shop';
     game.shopFrom = from || 'cave';
     game.shopSel = 0;
+    game.shopScrollY = 0;
 }
 
 export function updateShop(dt, L) {
@@ -29,9 +41,11 @@ export function updateShop(dt, L) {
     }
     if (L.input.justPressed('menu_up') || L.input.justPressed('up')) {
         game.shopSel = Math.max(0, game.shopSel - 1);
+        autoScrollShop();
     }
     if (L.input.justPressed('menu_down') || L.input.justPressed('down')) {
         game.shopSel = Math.min(SHOP_ITEMS.length - 1, game.shopSel + 1);
+        autoScrollShop();
     }
     if (L.input.justPressed('menu_enter')) {
         buyItem(game.shopSel);

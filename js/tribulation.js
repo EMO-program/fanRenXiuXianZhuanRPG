@@ -4,8 +4,11 @@ import { W, H, TB } from './engine.js';
 import { maxHP, maxMana, doNtf, gainExp, hitFX } from './utils.js';
 
 export function enterTribulation() {
-    const cfg = TRIBULATION[game.CL.realm];
+    const nextRealm = { '炼气': '筑基', '筑基': '结丹', '结丹': '元婴', '元婴': '化神' }[game.CL.realm];
+    if (!nextRealm) { doNtf('⚠ 无法触发天劫'); return; }
+    const cfg = TRIBULATION[nextRealm];
     if (!cfg) { doNtf('⚠ 无法触发天劫'); return; }
+    game.tribRealm = nextRealm;
     game.gameMode = 'tribulation';
     game.tribTimer = cfg.duration;
     game.tribBoltCD = 0;
@@ -19,7 +22,7 @@ export function enterTribulation() {
 }
 
 export function updateTribulation(dt, L) {
-    const cfg = TRIBULATION[game.CL.realm];
+    const cfg = TRIBULATION[game.tribRealm];
     if (!cfg) { game.gameMode = 'battle'; return; }
 
     let dx = 0, dy = 0;
@@ -47,26 +50,42 @@ export function updateTribulation(dt, L) {
 
     game.tribBoltCD = Math.max(0, game.tribBoltCD - dt);
     if (game.tribBoltCD <= 0) {
-        game.tribBoltCD = cfg.boltGap * (0.7 + Math.random() * 0.6);
+        game.tribBoltCD = cfg.boltGap * (0.6 + Math.random() * 0.8);
+        // vertical bolts from top
         for (let i = 0; i < cfg.boltsPer; i++) {
             const tx = 40 + Math.random() * (W - 80);
             game.tribBolts.push({
                 x: tx, y: -10,
-                life: 0.8, dmg: cfg.boltDmg, spd: cfg.boltSpd,
-                flash: 0, warned: false
+                life: 1.2, dmg: cfg.boltDmg, spd: cfg.boltSpd,
+                flash: 0, warned: false, dir: 'down'
             });
+        }
+        // side bolts from left and right
+        const sb = cfg.sideBolts || 0;
+        for (let i = 0; i < sb; i++) {
+            if (Math.random() < 0.5) {
+                game.tribBolts.push({
+                    x: -10, y: TB + 20 + Math.random() * (H - TB - 60),
+                    life: 1.2, dmg: cfg.boltDmg * 1.1, spd: cfg.boltSpd * 0.7,
+                    flash: 0, warned: false, dir: 'right'
+                });
+            } else {
+                game.tribBolts.push({
+                    x: W + 10, y: TB + 20 + Math.random() * (H - TB - 60),
+                    life: 1.2, dmg: cfg.boltDmg * 1.1, spd: cfg.boltSpd * 0.7,
+                    flash: 0, warned: false, dir: 'left'
+                });
+            }
         }
     }
 
     for (let i = game.tribBolts.length - 1; i >= 0; i--) {
         const b = game.tribBolts[i];
-        b.y += b.spd * dt;
+        if (b.dir === 'right') { b.x += b.spd * dt; if (!b.warned && b.x > 10) { b.warned = true; game.effects.push({ x: b.x, y: b.y, tp: 'boltWarn', life: 0.2, ml: 0.2, cl: '#ffdd00', sz: 8 }); } }
+        else if (b.dir === 'left') { b.x -= b.spd * dt; if (!b.warned && b.x < W - 10) { b.warned = true; game.effects.push({ x: b.x, y: b.y, tp: 'boltWarn', life: 0.2, ml: 0.2, cl: '#ffdd00', sz: 8 }); } }
+        else { b.y += b.spd * dt; if (!b.warned && b.y > 10) { b.warned = true; game.effects.push({ x: b.x, y: b.y, tp: 'boltWarn', life: 0.2, ml: 0.2, cl: '#ffdd00', sz: 8 }); } }
         b.life -= dt;
-        if (!b.warned && b.y > 10) {
-            b.warned = true;
-            game.effects.push({ x: b.x, y: b.y + 10, tp: 'boltWarn', life: 0.2, ml: 0.2, cl: '#ffdd00', sz: 8 });
-        }
-        if (b.y > H + 10 || b.life <= 0) {
+        if (b.x > W + 10 || b.x < -10 || b.y > H + 10 || b.life <= 0) {
             game.tribBolts.splice(i, 1);
             continue;
         }
@@ -89,7 +108,7 @@ export function updateTribulation(dt, L) {
 }
 
 function completeTribulation() {
-    const nextRealm = { '炼气': '筑基', '筑基': '结丹', '结丹': '元婴', '元婴': '化神' }[game.CL.realm];
+    const nextRealm = game.tribRealm;
     if (!nextRealm) { game.gameMode = 'battle'; return; }
     game.CL.breakRdy = false;
     game.CL.realm = nextRealm;
@@ -97,13 +116,20 @@ function completeTribulation() {
     game.CL.exp = 0;
     game.CL.expToNext = Math.round(game.CL.expToNext * 1.8);
     game.hp = maxHP(); game.mana = maxMana();
-    game.gameMode = 'battle'; game.sClr = false; game.waveReady = false; game.bSp = false; game.bDef = false;
     game.tribBolts = [];
     if (nextRealm === '筑基') game.swCnt = 12;
     else if (nextRealm === '结丹') game.swCnt = 24;
     else if (nextRealm === '元婴') game.swCnt = 48;
     else if (nextRealm === '化神') game.swCnt = 72;
     doNtf('⚡ 渡过天劫！踏入' + nextRealm + '！');
+    if (game.breakFromCave) {
+        game.breakFromCave = false;
+        game.gameMode = 'cave';
+        game.breakPrompt = false;
+        game.breakSel = 0;
+    } else {
+        game.gameMode = 'battle'; game.sClr = false; game.waveReady = false; game.bSp = false; game.bDef = false;
+    }
 }
 
 function failTribulation() {
@@ -111,7 +137,14 @@ function failTribulation() {
     game.CL.exp = Math.max(0, game.CL.expToNext - 1);
     game.hp = Math.round(maxHP() * 0.2);
     game.mana = maxMana();
-    game.gameMode = 'battle'; game.sClr = false; game.waveReady = false; game.bSp = false; game.bDef = false;
     game.tribBolts = [];
     doNtf('💀 天劫失败！境界突破未果...可再尝试');
+    if (game.breakFromCave) {
+        game.breakFromCave = false;
+        game.gameMode = 'cave';
+        game.breakPrompt = false;
+        game.breakSel = 0;
+    } else {
+        game.gameMode = 'battle'; game.sClr = false; game.waveReady = false; game.bSp = false; game.bDef = false;
+    }
 }
