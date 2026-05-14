@@ -118,7 +118,7 @@ export function leaveCaveToBattle() {
 }
 
 export function updateCave(dt, L) {
-    for (const p of game.cavePlots) { if (p.waterAnm > 0) p.waterAnm = Math.max(0, p.waterAnm - dt * 1.5); if (p.waterCooldown > 0) p.waterCooldown = Math.max(0, p.waterCooldown - dt); }
+    for (const p of game.cavePlots) { if (p.waterAnm > 0) p.waterAnm = Math.max(0, p.waterAnm - dt * 1.5); }
 
     if (game.breakPrompt) {
         if (L.input.justPressed('menu_up') || L.input.justPressed('up')) game.breakSel = Math.max(0, game.breakSel - 1);

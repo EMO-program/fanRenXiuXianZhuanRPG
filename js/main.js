@@ -187,6 +187,7 @@ L.update = (dt) => {
     game.ntfT = Math.max(0, game.ntfT - dt);
     game.bottleLiquid = Math.min(1, game.bottleLiquid + dt / 300);
     game.bottleGlowT += dt;
+    for (const p of game.cavePlots) { if (p.waterCooldown > 0) p.waterCooldown = Math.max(0, p.waterCooldown - dt); }
 
     if (L.input.justPressed('debug_toggle')) {
         if (!game.debugMode) { game.debugMode = true; game.debugSel = 0; game.debugInput = ''; }

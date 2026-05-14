@@ -36,8 +36,21 @@ export function initOrbitSwords() {
 
 export function updateOrbitSwords(dt) {
     const r = 36;
+    
     for (const sw of game.orbitSwords) {
         if (sw.state === 'orbit') {
+            if (sw.targetAngle !== undefined) {
+                let diff = sw.targetAngle - sw.angle;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                if (Math.abs(diff) < 0.01) {
+                    sw.angle = sw.targetAngle;
+                    delete sw.targetAngle;
+                } else {
+                    sw.angle += diff * 3 * dt;
+                    continue;
+                }
+            }
             sw.angle += 2.5 * dt;
         } else if (sw.state === 'flying') {
             const tb = getTechBonus();
@@ -65,7 +78,15 @@ export function updateOrbitSwords(dt) {
             const dist = Math.hypot(dx, dy);
             if (dist < r + 8) {
                 sw.state = 'orbit';
-                sw.angle = getOrbitGapAngle(Math.atan2(dy, dx));
+                sw.angle = Math.atan2(dy, dx);
+                const justAllReturned = game.orbitSwords.every(s => s.state === 'orbit');
+                if (justAllReturned) {
+                    const total = game.orbitSwords.length;
+                    const sorted = [...game.orbitSwords].sort((a, b) => a.angle - b.angle);
+                    for (let i = 0; i < total; i++) {
+                        sorted[i].targetAngle = i * Math.PI * 2 / total;
+                    }
+                }
             } else {
                 const spd = 300;
                 sw.x += dx / dist * spd * dt;
