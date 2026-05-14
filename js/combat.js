@@ -167,6 +167,22 @@ export function doMeleeHit() {
 }
 
 export function defeatBoss(e) {
+    if (e.name.includes('墨大夫') && !e.ph2) {
+        e.alive = true;
+        e.hp = e.maxHp * 0.5;
+        e.ph2 = true;
+        e.ph2Grace = 1.5;
+        e.charging = false;
+        e.ghosts = [];
+        for (let i = 0; i < 7; i++) {
+            e.ghosts.push({ angle: i * Math.PI * 2 / 7, delay: i * 0.2, shootTimer: 0 });
+        }
+        doNtf('💀 墨大夫进入魔化形态！七鬼噬魂大法！');
+        return;
+    }
+    
+    if (e.ph2Grace > 0) return;
+    
     e.alive = false; game.bDef = true;
     const ss = 20 + game.curS * 10 + Math.floor(Math.random() * 30); game.spiritStones += ss;
     doNtf('🏆 击败' + e.name + '！经验+' + e.exp + ' 灵石+' + ss);
@@ -222,4 +238,150 @@ export function goToHubAfterBoss() {
     } else {
         game.gameMode = 'hub'; game.hubSel = 0; game.hubMode = 'main';
     }
+}
+
+export function updateMoDaifu(e, dt) {
+    e.ph2Grace = Math.max(0, (e.ph2Grace || 0) - dt);
+    if (e.ph2Grace > 0) e.hp = Math.max(1, e.hp);
+    
+    const hpPct = e.hp / e.maxHp;
+    
+    if (!e.ph2 && (hpPct <= 0.1 || e.hp <= 0)) {
+        e.ph2 = true;
+        e.hp = e.maxHp * 0.5;
+        e.ph2Grace = 1.5;
+        e.charging = false;
+        e.ghosts = [];
+        for (let i = 0; i < 7; i++) {
+            e.ghosts.push({ angle: i * Math.PI * 2 / 7, delay: i * 0.2, shootTimer: 0 });
+        }
+        doNtf('💀 墨大夫进入魔化形态！七鬼噬魂大法！');
+        return;
+    }
+    
+    if (e.ph2) {
+        updateMoDaifuPhase2(e, dt);
+        return;
+    }
+    
+    updateMoDaifuPhase1(e, dt);
+}
+
+function updateMoDaifuPhase1(e, dt) {
+    e.tm = (e.tm || 0) + dt;
+    e.atkT = Math.max(0, (e.atkT || 0) - dt);
+    e.silverHandCd = Math.max(0, (e.silverHandCd || 0) - dt);
+    
+    const edx = game.HL.x - e.x, edy = game.HL.y - e.y, ed = Math.hypot(edx, edy);
+    
+    if (e.charging) {
+        e.chargeT += dt;
+        const moveDist = e.chSpd * dt;
+        e.x += e.chDx * moveDist;
+        e.y += e.chDy * moveDist;
+        e.chDist += moveDist;
+        
+        if (!e.chargeHit) {
+            const dToPlayer = Math.hypot(game.HL.x - e.x, game.HL.y - e.y);
+            if (dToPlayer < e.size + 20) {
+                e.chargeHit = true;
+                if (game.shieldT <= 0 && game.HL.invT <= 0) {
+                    game.hp -= Math.max(1, 25 - getEquipBonus().def);
+                    game.psnCnt = 2;
+                    game.HL.invT = 0.5;
+                    doNtf('⚠ 魔银手！中毒2秒');
+                }
+                hitFX({ x: game.HL.x, y: game.HL.y });
+            }
+        }
+        
+        if (e.chargeT > 0.6 || e.chDist >= e.chMaxDist) {
+            e.charging = false;
+            e.chargeHit = false;
+            e.atkT = 0.5;
+            
+            game.effects.push({ x: e.x, y: e.y, tp: 'silverHand', life: 0.6, ml: 0.6, sz: e.size });
+        }
+        return;
+    }
+    
+    const halfMapDist = 400;
+    if (e.silverHandCd <= 0 && ed <= halfMapDist) {
+        e.silverHandCd = 5;
+        e.charging = true;
+        e.chargeHit = false;
+        e.chargeT = 0;
+        e.chSpd = 800;
+        e.chDist = 0;
+        e.chMaxDist = ed + 50;
+        e.chDx = edx / ed;
+        e.chDy = edy / ed;
+        game.effects.push({ x: e.x, y: e.y, tp: 'silverHandCharge', life: 0.3, ml: 0.3 });
+        return;
+    }
+    
+    if (ed > e.size + 8) {
+        const spd = e.spd || 25;
+        e.x += edx / ed * spd * dt;
+        e.y += edy / ed * spd * dt;
+    }
+    
+    if (ed < e.size + 12 && game.HL.invT <= 0 && e.atkT <= 0) {
+        if (game.shieldT <= 0) {
+            game.hp -= Math.max(1, e.atk - getEquipBonus().def);
+            game.HL.invT = 0.5;
+        }
+        e.atkT = 0.8;
+        hitFX({ x: game.HL.x, y: game.HL.y });
+    }
+}
+
+function updateMoDaifuPhase2(e, dt) {
+    e.tm = (e.tm || 0) + dt;
+    
+    const edx = game.HL.x - e.x, edy = game.HL.y - e.y, ed = Math.hypot(edx, edy);
+    
+    if (ed > 100) {
+        const spd = e.spd || 15;
+        e.x += edx / ed * spd * dt;
+        e.y += edy / ed * spd * dt;
+    }
+    
+    if (!e.ghosts) {
+        e.ghosts = [];
+        for (let i = 0; i < 7; i++) {
+            e.ghosts.push({ angle: i * Math.PI * 2 / 7, delay: i * 0.2, shootTimer: 0 });
+        }
+    }
+    
+    for (const ghost of e.ghosts) {
+        ghost.angle += 0.8 * dt;
+        ghost.shootTimer += dt;
+        
+        if (ghost.shootTimer >= 2 + ghost.delay) {
+            ghost.shootTimer = 0;
+            const gx = e.x + Math.cos(ghost.angle) * 40;
+            const gy = e.y + Math.sin(ghost.angle) * 40;
+            const ba = Math.atan2(game.HL.y - gy, game.HL.x - gx);
+            game.bullets.push({
+                x: gx, y: gy,
+                vx: Math.cos(ba) * 120,
+                vy: Math.sin(ba) * 120,
+                life: 3, type: 'ghostSkull',
+                dmg: 12
+            });
+        }
+    }
+    
+    if (Math.hypot(game.HL.x - e.x, game.HL.y - e.y) < e.size + 12 && game.HL.invT <= 0) {
+        if (game.shieldT <= 0) {
+            game.hp -= Math.max(1, 8 - getEquipBonus().def);
+            game.HL.invT = 0.5;
+        }
+        hitFX({ x: game.HL.x, y: game.HL.y });
+    }
+}
+
+function getEquipBonus() {
+    return { def: 0, manaRegen: 1 };
 }

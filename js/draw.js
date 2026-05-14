@@ -1,4 +1,4 @@
-﻿import { STAGES, HERBS, HLIST, rsName, EQUIPMENT, EQUIP_SLOTS, ITEMS, SHOP_ITEMS, TRIBULATION, DIFFICULTIES, TECHNIQUES, EVENTS, WORLD_MAP, KEY_ITEMS, REALMS, BREAKTHROUGH } from './config.js';
+import { STAGES, HERBS, HLIST, rsName, EQUIPMENT, EQUIP_SLOTS, ITEMS, SHOP_ITEMS, TRIBULATION, DIFFICULTIES, TECHNIQUES, EVENTS, WORLD_MAP, KEY_ITEMS, REALMS, BREAKTHROUGH } from './config.js';
 import { game } from './state.js';
 import { G, W, H, S as SC, TB } from './engine.js';
 import { pix, ln, cir, cs, maxHP, maxMana, atkBase } from './utils.js';
@@ -235,7 +235,22 @@ function drawBoss(bs) {
 
 // ===== 墨大夫·莫居仁（执杖毒师） =====
 function drawMoDaifu(bs) {
-    _bossBase(bs, '#3a4a2a', '#dcc0a0', '#aaa', '#111', { beard:'goatee', weapon:'staff', robeDeco:'#2a3a1a' });
+    if (bs.ph2) {
+        const t = bs.tm || 0;
+        for (let i = 0; i < 8; i++) {
+            const an = i * Math.PI * 2 / 8 + t * 2;
+            const r = bs.size * 0.8 + Math.sin(t * 4 + i) * 5;
+            const x = bs.x + Math.cos(an) * r;
+            const y = bs.y + Math.sin(an) * r;
+            const a = 0.4 + Math.sin(t * 3 + i) * 0.2;
+            G.circle('fill', [0.1, 0, 0.15, a], [x, y], 4 + Math.sin(t * 5 + i) * 2);
+        }
+        G.circle('fill', 'rgba(20,0,30,0.3)', [bs.x, bs.y], bs.size * 0.7);
+        G.circle('line', 'rgba(100,20,120,0.5)', [bs.x, bs.y], bs.size * 0.9, { lineWidth: 2 });
+        _bossBase(bs, '#1a0a2a', '#8a6a6a', '#2a1a3a', '#600080', { beard:'goatee', weapon:'staff', robeDeco:'#3a1a4a' });
+    } else {
+        _bossBase(bs, '#3a4a2a', '#dcc0a0', '#aaa', '#111', { beard:'goatee', weapon:'staff', robeDeco:'#2a3a1a' });
+    }
 }
 
 // ===== 墨蛟（黑鳞蛟龙，血目巨口） =====
@@ -671,6 +686,47 @@ export function drawFX() {
             const r = e.sz * (0.4 + p * 0.6);
             G.circle('fill', cs(e.cl, a * 0.6), [e.x, e.y], r);
             G.circle('line', cs('#ffdd60', a), [e.x, e.y], r + 1, { lineWidth: 1.5 - p });
+        } else if (e.tp === 'silverHand') {
+            const baseSz = e.sz || 20;
+            const sz = baseSz * 1.5;
+            const cx = Math.round(e.x), cy = Math.round(e.y);
+            const palmW = Math.round(sz * 0.8);
+            const palmH = Math.round(sz * 0.7);
+            const palmL = cx - palmW / 2;
+            const palmT = cy - palmH / 2;
+            const fingerW = Math.round(sz * 0.12);
+            const fingerL = Math.round(sz * 0.6);
+            const fingerSpacing = Math.round(palmW / 4);
+            const fingerOverlap = 8;
+            const glowCol = cs('#aa55ff', a * 0.6);
+            const mainCol = cs('#6a2a8a', a * 0.7);
+            G.rectangle('fill', glowCol, [palmL - 4, palmT - 4, palmW + 8, palmH + 8]);
+            for (let i = 0; i < 4; i++) {
+                const fx = palmL + fingerSpacing * (i + 1);
+                G.rectangle('fill', glowCol, [fx - fingerW / 2 - 3, palmT - fingerL + fingerOverlap - 3, fingerW + 6, fingerL + 6]);
+            }
+            for (let i = 0; i < 4; i++) {
+                const fx = palmL + fingerSpacing * (i + 1);
+                G.rectangle('fill', mainCol, [fx - fingerW / 2, palmT - fingerL + fingerOverlap, fingerW, fingerL]);
+            }
+            G.rectangle('fill', mainCol, [palmL, palmT, palmW, palmH]);
+            const thumbW = Math.round(sz * 0.18);
+            const thumbL = Math.round(sz * 0.4);
+            const thumbAngle = -Math.PI * 0.25;
+            const thumbBaseX = palmL + 5;
+            const thumbBaseY = palmT + palmH * 0.4;
+            const thumbEndX = thumbBaseX - Math.cos(thumbAngle) * thumbL;
+            const thumbEndY = thumbBaseY + Math.sin(thumbAngle) * thumbL;
+            ln(thumbBaseX, thumbBaseY, thumbEndX, thumbEndY, glowCol, thumbW + 6);
+            ln(thumbBaseX, thumbBaseY, thumbEndX, thumbEndY, mainCol, thumbW);
+            G.circle('fill', glowCol, [thumbEndX, thumbEndY], thumbW * 0.6 + 3);
+            G.circle('fill', mainCol, [thumbEndX, thumbEndY], thumbW * 0.6);
+            G.rectangle('fill', cs('#4a1a6a', a * 0.5), [palmL + palmW * 0.35, palmT + palmH * 0.35, palmW * 0.3, palmH * 0.3]);
+        } else if (e.tp === 'silverHandCharge') {
+            const r = 15 + Math.sin(p * Math.PI * 3) * 10;
+            G.circle('fill', cs('#8080a0', a * 0.2), [e.x, e.y], r);
+            G.circle('line', cs('#c0c0e0', a), [e.x, e.y], r, { lineWidth: 2 });
+            G.circle('line', cs('#e0e0ff', a * 0.6), [e.x, e.y], r + 8, { lineWidth: 1 });
         } else {
             G.circle('fill', cs(e.cl, a), [e.x, e.y], e.sz * (1 - p * 0.6));
             if (p > 0.2) G.circle('line', cs(e.cl, a * 0.3), [e.x, e.y], e.sz * 2, { lineWidth: 0.8 });

@@ -2,7 +2,7 @@ import { L, G, W, H, TB } from './engine.js';
 import { game } from './state.js';
 import { STAGES, SKILLS, DIFFICULTIES, TECHNIQUES, WORLD_MAP, KEY_ITEMS } from './config.js';
 import { maxHP, maxMana, doNtf, hitFX, spawnSwordFX, cir, ln } from './utils.js';
-import { spawnWave, doMeleeHit, defeatBoss, goToHubAfterBoss, applyChestReward } from './combat.js';
+import { spawnWave, doMeleeHit, defeatBoss, goToHubAfterBoss, applyChestReward, updateMoDaifu } from './combat.js';
 import { enterCave, updateCave } from './garden.js';
 import { getEquipBonus } from './equipment.js';
 import { drawHL, drawEn, drawFX, drawUI, drawCave, drawEquipment, drawInventory, drawTitle } from './draw.js';
@@ -507,6 +507,11 @@ L.update = (dt) => {
         e.atkT = Math.max(0, (e.atkT || 0) - dt);
 
         if (e.isBoss) {
+            if (e.name.includes('墨大夫')) {
+                updateMoDaifu(e, dt);
+                continue;
+            }
+            
             if (ed > 0) { const spd = e.spd || 30; e.x += edx / ed * spd * dt; e.y += edy / ed * spd * dt; }
             const hpPct = e.hp / e.maxHp;
             if (e.tm > (hpPct < 0.5 ? 0.4 : 1.2)) {
@@ -717,6 +722,13 @@ L.update = (dt) => {
             if (hit) game.bullets.splice(i, 1);
             continue;
         }
+        if (b.type === 'ghostSkull') {
+            if (Math.hypot(b.x - game.HL.x, b.y - game.HL.y) < 12 && game.HL.invT <= 0) {
+                if (game.shieldT <= 0) { game.hp -= Math.max(1, b.dmg || 12 - eqDef - tb.flatDef); game.HL.invT = 0.5; }
+                game.bullets.splice(i, 1); hitFX({ x: game.HL.x, y: game.HL.y });
+            }
+            continue;
+        }
         if (Math.hypot(b.x - game.HL.x, b.y - game.HL.y) < 14 && game.HL.invT <= 0) {
             if (game.shieldT <= 0) { game.hp -= Math.max(1, 8 - eqDef - tb.flatDef); game.HL.invT = 0.5; }
             game.bullets.splice(i, 1); hitFX({ x: game.HL.x, y: game.HL.y });
@@ -853,6 +865,17 @@ L.draw = () => {
             ln(gx, gy, tx + ca * sz * 0.1, ty + sa * sz * 0.1, '#80ff80', sz * 0.04);
             // glow
             G.circle('line', 'rgba(64,192,96,0.3)', [b.x, b.y], sz * 0.55, { lineWidth: 1.5 });
+        }
+        else if (b.type === 'ghostSkull') {
+            const sz = 6 + Math.sin(game.bottleGlowT * 8) * 2;
+            G.circle('fill', '#2a0a2a', [b.x, b.y], sz);
+            G.circle('line', '#6a2a6a', [b.x, b.y], sz, { lineWidth: 1.5 });
+            G.circle('fill', '#1a1a1a', [b.x - 2, b.y - 1], 2);
+            G.circle('fill', '#1a1a1a', [b.x + 2, b.y - 1], 2);
+            G.circle('fill', '#8a2a8a', [b.x - 2, b.y - 1], 1);
+            G.circle('fill', '#8a2a8a', [b.x + 2, b.y - 1], 1);
+            G.circle('fill', '#1a1a1a', [b.x, b.y + 2], 2);
+            G.circle('line', 'rgba(100,40,100,0.5)', [b.x, b.y], sz + 3, { lineWidth: 2 });
         }
         else { cir(b.x, b.y, 4, '#ff4040'); cir(b.x, b.y, 2, '#ff8080'); }
     }
