@@ -287,15 +287,15 @@ export const KEY_ITEMS = {
 };
 
 const _bossTechTemp = [
-    { id: 'moYiPoison', bossStage: 'qxMiShi', name: '墨医毒经', desc: '周身毒雾·持续伤敌', realm: '炼气', cl: '#80ff00', tiers: [{ lv:1,cost:100,val:4,label:'修习·毒雾+4/秒'}], spell: '毒雾护体——周身3秒毒伤敌人', spellId: 'poisonAura' },
-    { id: 'moJiaoBlood', bossStage: 'hfxueSe', name: '墨蛟血炼', desc: '生命恢复·伤害提升', realm: '筑基', cl: '#c04040', tiers: [{ lv:1,cost:150,val:3,val2:0.12,label:'修习·回血+3/s·伤+12%'}], spell: '蛟血沸腾——每秒恢复生命并增强伤害', spellId: 'bloodRage' },
-    { id: 'wangChanSoul', bossStage: 'zmHeXin', name: '万魂经残篇', desc: '杀敌回蓝·神识增强', realm: '筑基', cl: '#6060c0', tiers: [{ lv:1,cost:180,val:30,val2:0.12,label:'修习·杀敌+30法力·伤+12%'}], spell: '魂力吞噬——击杀敌人恢复法力并提升伤害', spellId: 'soulDevour' },
-    { id: 'fengXiWing', bossStage: 'lxwhShenHai', name: '风雷翅功法', desc: '移速与伤害大增', realm: '结丹', cl: '#40e0d0', tiers: [{ lv:1,cost:250,val:0.25,val2:0.35,label:'修习·移速+25%·伤+35%'}], spell: '风雷之力——移动速度与伤害大幅提升', spellId: 'windThunder' },
-    { id: 'xuanGuBody', bossStage: 'lxxtNeiDian', name: '玄骨锻体诀', desc: '防御强化·生命大增', realm: '结丹', cl: '#d4af37', tiers: [{ lv:1,cost:250,val:0.3,val2:3,label:'修习·生命+30%·减伤+3'}], spell: '骨体强化——受击时减免伤害并反伤', spellId: 'boneArmor' },
-    { id: 'muLanMagic', bossStage: 'mlZhanChang', name: '幕兰咒法', desc: '攻击吸血', realm: '元婴', cl: '#c020c0', tiers: [{ lv:1,cost:300,val:0.15,val2:0.08,label:'修习·伤害+15%·吸血8%'}], spell: '咒法噬血——攻击时吸取敌人生命', spellId: 'lifeSteal' },
-    { id: 'tianLanGrace', bossStage: 'tlShengDi', name: '天澜圣典', desc: '全面强化', realm: '元婴', cl: '#ff40ff', tiers: [{ lv:1,cost:400,val:6,val2:0.2,label:'修习·回血+6/s·全属性+20%'}], spell: '圣典祝福——生命、攻击、法力全面增强', spellId: 'splitSoul' },
-    { id: 'yinLuoDemon', bossStage: 'djylDaDian', name: '阴罗魔典', desc: '伤害强化·法回大增', realm: '元婴', cl: '#a040a0', tiers: [{ lv:1,cost:400,val:0.25,val2:0.8,label:'修习·伤+25%·法回+80%'}], spell: '魔典真言——攻击力与法力恢复大幅提升', spellId: 'demonTome' },
-    { id: 'icePhoenix', bossStage: 'jbxjXuanTian', name: '冰凤真血', desc: '极寒护体·生命大增', realm: '元婴', cl: '#80c0ff', tiers: [{ lv:1,cost:500,val:0.4,val2:5,label:'修习·生命+40%·减伤+5'}], spell: '冰凤护体——大幅减免伤害并提升生命', spellId: 'iceGuard' },
+    { id: 'modSilverHand', bossStage: 'qxMiShi', name: '魔银手', desc: '瞬移魔手·毒掌轰击', realm: '炼气', cl: '#aa55ff', tiers: [{ lv:1,cost:500,val:30,val2:4,val3:50,val4:10,label:'一层·魔手初成·伤30·毒4/秒·耗50·CD10s'},{ lv:2,cost:1000,val:50,val2:8,val3:45,val4:8,label:'二层·银手凝实·伤50·毒8/秒·耗45·CD8s'},{ lv:3,cost:2000,val:80,val2:12,val3:40,val4:6,label:'三层·魔手大成·伤80·毒12/秒·耗40·CD6s'}], spell: '魔银手——点击鼠标瞬移并发紫色手掌、附带毒伤', spellId: 'silverHand' },
+    { id: 'moJiaoBlood', bossStage: 'hfxueSe', name: '墨蛟血炼', desc: '生命恢复·伤害提升', realm: '筑基', cl: '#c04040', tiers: [{ lv:1,cost:600,val:3,val2:0.12,label:'修习·回血+3/s·伤+12%'}], spell: '蛟血沸腾——每秒恢复生命并增强伤害', spellId: 'bloodRage' },
+    { id: 'wangChanSoul', bossStage: 'zmHeXin', name: '万魂经残篇', desc: '杀敌回蓝·神识增强', realm: '筑基', cl: '#6060c0', tiers: [{ lv:1,cost:700,val:30,val2:0.12,label:'修习·杀敌+30法力·伤+12%'}], spell: '魂力吞噬——击杀敌人恢复法力并提升伤害', spellId: 'soulDevour' },
+    { id: 'fengXiWing', bossStage: 'lxwhShenHai', name: '风雷翅功法', desc: '移速与伤害大增', realm: '结丹', cl: '#40e0d0', tiers: [{ lv:1,cost:800,val:0.25,val2:0.35,label:'修习·移速+25%·伤+35%'}], spell: '风雷之力——移动速度与伤害大幅提升', spellId: 'windThunder' },
+    { id: 'xuanGuBody', bossStage: 'lxxtNeiDian', name: '玄骨锻体诀', desc: '防御强化·生命大增', realm: '结丹', cl: '#d4af37', tiers: [{ lv:1,cost:900,val:0.3,val2:3,label:'修习·生命+30%·减伤+3'}], spell: '骨体强化——受击时减免伤害并反伤', spellId: 'boneArmor' },
+    { id: 'muLanMagic', bossStage: 'mlZhanChang', name: '幕兰咒法', desc: '攻击吸血', realm: '元婴', cl: '#c020c0', tiers: [{ lv:1,cost:1000,val:0.15,val2:0.08,label:'修习·伤害+15%·吸血8%'}], spell: '咒法噬血——攻击时吸取敌人生命', spellId: 'lifeSteal' },
+    { id: 'tianLanGrace', bossStage: 'tlShengDi', name: '天澜圣典', desc: '全面强化', realm: '元婴', cl: '#ff40ff', tiers: [{ lv:1,cost:1200,val:6,val2:0.2,label:'修习·回血+6/s·全属性+20%'}], spell: '圣典祝福——生命、攻击、法力全面增强', spellId: 'splitSoul' },
+    { id: 'yinLuoDemon', bossStage: 'djylDaDian', name: '阴罗魔典', desc: '伤害强化·法回大增', realm: '元婴', cl: '#a040a0', tiers: [{ lv:1,cost:1400,val:0.25,val2:0.8,label:'修习·伤+25%·法回+80%'}], spell: '魔典真言——攻击力与法力恢复大幅提升', spellId: 'demonTome' },
+    { id: 'icePhoenix', bossStage: 'jbxjXuanTian', name: '冰凤真血', desc: '极寒护体·生命大增', realm: '元婴', cl: '#80c0ff', tiers: [{ lv:1,cost:1600,val:0.4,val2:5,label:'修习·生命+40%·减伤+5'}], spell: '冰凤护体——大幅减免伤害并提升生命', spellId: 'iceGuard' },
 ];
 
 // ===== 灵草配置 =====

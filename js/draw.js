@@ -1,14 +1,15 @@
-import { STAGES, HERBS, HLIST, rsName, EQUIPMENT, EQUIP_SLOTS, ITEMS, SHOP_ITEMS, TRIBULATION, DIFFICULTIES, TECHNIQUES, EVENTS, WORLD_MAP, KEY_ITEMS, REALMS, BREAKTHROUGH } from './config.js';
+﻿﻿import { STAGES, HERBS, HLIST, rsName, EQUIPMENT, EQUIP_SLOTS, ITEMS, SHOP_ITEMS, TRIBULATION, DIFFICULTIES, TECHNIQUES, EVENTS, WORLD_MAP, KEY_ITEMS, REALMS, BREAKTHROUGH } from './config.js';
 import { game } from './state.js';
 import { G, W, H, S as SC, TB } from './engine.js';
 import { pix, ln, cir, cs, maxHP, maxMana, atkBase } from './utils.js';
 import { getAllSlots } from './save.js';
 import { getBossList } from './main.js';
+import { getRoomKey } from './combat.js';
 
 function getMapNode(nodes, path) { let cur = null; for (const idx of path) { const list = cur ? cur.children : nodes; if (!list || idx >= list.length) return null; cur = list[idx]; } return cur; }
 function getCurrentChildren() { if (game.mapLevel === 0) return WORLD_MAP; const n = getMapNode(WORLD_MAP, game.mapSel.slice(0, game.mapLevel)); return n ? (n.children || []) : []; }
 function getMapList(children) { return children || []; }
-function isMapUnlocked(node) { if (!node) return false; const u = node.unlock; if (!u) return true; const ri = ['炼气','筑基','结丹','元婴','化神'].indexOf(game.CL.realm); if (u.realm) { const reqIdx = ['炼气','筑基','结丹','元婴','化神'].indexOf(u.realm); if (ri < reqIdx) return false; if (u.realmStage && ri === reqIdx && game.CL.stage < u.realmStage) return false; } if (u.clear && !u.clear.every(id => (game.clearedStages || []).includes(id))) return false; if (u.items && !u.items.every(it => (game.inventory[it] || 0) > 0)) return false; return true; }
+function isMapUnlocked(node) { if (!node) return false; if (node.stage && game.unlockedStages && game.unlockedStages.includes(node.id)) return true; const u = node.unlock; if (!u) return true; const ri = ['炼气','筑基','结丹','元婴','化神'].indexOf(game.CL.realm); if (u.realm) { const reqIdx = ['炼气','筑基','结丹','元婴','化神'].indexOf(u.realm); if (ri < reqIdx) return false; if (u.realmStage && ri === reqIdx && game.CL.stage < u.realmStage) return false; } if (u.clear && !u.clear.every(id => (game.clearedStages || []).includes(id))) return false; if (u.items && !u.items.every(it => (game.inventory[it] || 0) > 0)) return false; return true; }
 function getHint(node) { if (!node || !node.unlock) return ''; const p = []; const u = node.unlock; const S3 = ['初期','中期','后期']; if (u.realm) { let st = ''; if (u.realmStage) st = u.realm === '炼气' ? u.realmStage + '层' : S3[Math.min(u.realmStage - 1, 2)]; p.push('境界≥' + u.realm + '·' + st); } if (u.clear) p.push('前置：'+u.clear.map(id => { const s = STAGES.find(st=>st.id===id); return s?s.name:id; }).join(' ')); if (u.items) p.push('需：'+u.items.join(' + ')); return p.join(' | '); }
 
 // ===== 角色绘制 =====
@@ -670,6 +671,18 @@ export function drawEn(e) {
         _enBody(bCl, rCl, hCl, eCl); _enLegs(); _enAtkArm('#f66');
         if (!atkT) _enArms(bCl, rCl);
     }
+    if (e.maxHp && e.maxHp > 0) {
+        const bw = s * 2.5, bh = 3;
+        const bx = cx - bw / 2, by = cy - s - 10;
+        pix(bx, by, bw, bh, '#400');
+        pix(bx, by, bw * Math.max(0, e.hp / e.maxHp), bh, '#f44');
+        const hpText = Math.round(e.hp) + '/' + e.maxHp;
+        G.print('#fff', hpText, [cx - hpText.length * 3, by - 10], { font: '8px monospace' });
+    }
+    if (e.elite) {
+        G.circle('line', '#ffd700', [cx, cy], s + 4, { lineWidth: 1.5 });
+        G.print('#ffd700', '★', [cx - 4, cy - s - 12], { font: '8px sans-serif' });
+    }
 }
 
 // ===== 特效绘制 =====
@@ -753,7 +766,11 @@ export function drawUI() {
     G.rectangle('fill', [0.2, 0.6, 0.2, 0.8], [410, TB + 10, bW * expP, 10]);
     G.print('#ccc', Math.round(game.CL.exp) + '/' + game.CL.expToNext, [410 + bW + 4, TB + 4], { font: '10px monospace' });
     G.print('#cba', '副本：' + sd.name, [8, H - 32], { font: '12px monospace' });
-    G.print('#aaa', '波次 ' + game.sWv + '/' + sd.waves + (game.bSp ? '  BOSS' : ''), [8, H - 18], { font: '11px monospace' });
+    const rk = game.roomGrid[game.roomX + ',' + game.roomY];
+    const bNtf = game.bSp ? (game.bDef ? ' BOSS已击败' : ' BOSS') : '';
+    const curStageRooms = Object.values(game.roomGrid).filter(r => r.stageId === game.curStageId);
+    const curStageCleared = curStageRooms.filter(r => r.cleared).length;
+    G.print('#aaa', '区域 [' + game.roomX + ',' + game.roomY + '] 清除:' + curStageCleared + '/' + curStageRooms.length + bNtf, [8, H - 18], { font: '11px monospace' });
     G.print('#888', '攻击:' + atkBase() + (game.CL.breakRdy ? ' | 突破:击败BOSS' : ''), [200, H - 32], { font: '10px monospace' });
     G.print('#aaa', '飞剑:' + game.swCnt + '/72 | 法力:5/击' + (game.atkBuf > 0 ? ' 🔥攻↑' : ''), [200, H - 18], { font: '10px monospace' });
     G.print('#0ff', '💎' + game.spiritStones, [W - 80, H - 32], { font: '12px monospace' });
@@ -919,6 +936,28 @@ export function drawGardenHL(px, py) {
     pix(cx + d * Math.round(6 * SC) - Math.round(1 * SC), bdY + Math.round(1 * SC) + bY, Math.round(3 * SC), Math.round(3 * SC), '#2d7d6f');
     pix(cx - d * Math.round(6 * SC) - Math.round(1 * SC), bdY + Math.round(4 * SC) + bY, Math.round(3 * SC), Math.round(4 * SC), '#f5c6a0');
     pix(cx + d * Math.round(6 * SC) - Math.round(1 * SC), bdY + Math.round(4 * SC) + bY, Math.round(3 * SC), Math.round(4 * SC), '#f5c6a0');
+}
+
+export function drawChests() {
+    const key = game.roomX + ',' + game.roomY;
+    const room = game.roomGrid[key];
+    if (!room || !room.hasChest) return;
+    const cx = room.chestX || W / 2, cy = room.chestY || ((TB + H) / 2);
+    const sz = 14;
+    if (room.chestOpened) {
+        pix(cx - sz, cy - sz * 0.6, sz * 2, sz * 1.2, '#5a4a30');
+        pix(cx - sz * 0.7, cy - sz * 0.8, sz * 1.4, sz * 0.3, '#6a5a40');
+        G.print('#aaa', '已开启', [cx - 18, cy - sz * 1.8], { font: '8px monospace' });
+        return;
+    }
+    pix(cx - sz, cy - sz * 0.6, sz * 2, sz * 1.2, '#8a6a30');
+    pix(cx - sz * 0.8, cy - sz * 0.9, sz * 1.6, sz * 0.5, '#aa8a40');
+    G.rectangle('line', '#ffd700', [cx - sz * 0.6, cy - sz * 0.7, sz * 1.2, sz * 0.8], { lineWidth: 1.5 });
+    G.print('#ffd700', '宝箱', [cx - 12, cy - sz * 2], { font: '9px monospace' });
+    const dist = Math.hypot(game.HL.x - cx, game.HL.y - cy);
+    if (dist < 50) {
+        G.print('#fff', '[E] 打开', [cx - 20, cy + sz * 1.2], { font: '8px monospace' });
+    }
 }
 
 export function drawGardenTree(tx, ty, sz) {
@@ -1641,7 +1680,7 @@ export function drawDialogue() {
 
     const sp = line.speaker;
     const text = line.text;
-    const bpName = STAGES.find(s => s.id === game.curStageId)?.boss?.name || '';
+    const bpName = STAGES.find(s => s.id === game.curStageId)?.stage?.boss?.name || '';
 
     if (sp === 'loot') {
         G.print('#ffd700', '战 利 品', [W / 2 - 40, H / 2 + 14], { font: '18px monospace' });
@@ -1797,4 +1836,82 @@ export function drawDebug() {
     }
 
     G.print('#888', '↑↓ 选择  Enter 执行  ESC 关闭', [W / 2 - 110, H - 40], { font: '10px monospace' });
+}
+
+export function drawMiniMap() {
+    const mx = W - 130, my = TB + 40, mw = 120, mh = 120;
+    G.rectangle('fill', [0, 0, 0, 0.7], [mx - 2, my - 2, mw + 4, mh + 4]);
+    G.rectangle('line', '#555', [mx, my, mw, mh], { lineWidth: 1 });
+    if (!game.roomGrid || Object.keys(game.roomGrid).length === 0) return;
+    let minX = 0, maxX = 0, minY = 0, maxY = 0;
+    for (const key in game.roomGrid) {
+        const r = game.roomGrid[key];
+        minX = Math.min(minX, r.x); maxX = Math.max(maxX, r.x);
+        minY = Math.min(minY, r.y); maxY = Math.max(maxY, r.y);
+    }
+    const gw = maxX - minX + 1, gh = maxY - minY + 1;
+    const gridW = Math.max(gw, 1), gridH = Math.max(gh, 1);
+    const cellS = Math.min(Math.floor(mw / (gridW + 2)), Math.floor(mh / (gridH + 2)), 22);
+    const ox = mx + (mw - gridW * cellS) / 2 + cellS / 2;
+    const oy = my + (mh - gridH * cellS) / 2 + cellS / 2;
+    for (const key in game.roomGrid) {
+        const r = game.roomGrid[key];
+        if (!r.visited) continue;
+        const rx = ox + (r.x - minX) * cellS, ry = oy + (r.y - minY) * cellS;
+        const color = r.isBossRoom ? '#f22' : r.cleared ? '#5a5' : '#556';
+        G.rectangle('fill', color, [rx - cellS / 2 + 2, ry - cellS / 2 + 2, cellS - 4, cellS - 4]);
+        G.rectangle('line', r.isBossRoom ? '#f66' : '#777', [rx - cellS / 2 + 2, ry - cellS / 2 + 2, cellS - 4, cellS - 4], { lineWidth: 0.5 });
+        if (r.exits.up) { G.rectangle('fill', r.bridge && r.bridge.dir === 'up' ? '#48f' : '#666', [rx - 2, ry - cellS / 2, 4, 4]); }
+        if (r.exits.down) { G.rectangle('fill', r.bridge && r.bridge.dir === 'down' ? '#48f' : '#666', [rx - 2, ry + cellS / 2 - 4, 4, 4]); }
+        if (r.exits.left) { G.rectangle('fill', r.bridge && r.bridge.dir === 'left' ? '#48f' : '#666', [rx - cellS / 2, ry - 2, 4, 4]); }
+        if (r.exits.right) { G.rectangle('fill', r.bridge && r.bridge.dir === 'right' ? '#48f' : '#666', [rx + cellS / 2 - 4, ry - 2, 4, 4]); }
+    }
+    const prx = ox + (game.roomX - minX) * cellS, pry = oy + (game.roomY - minY) * cellS;
+    G.rectangle('fill', '#0f0', [prx - 3, pry - 3, 6, 6]);
+    G.print('#aaa', 'M键', [mx, my + mh + 12], { font: '9px monospace' });
+}
+
+export function drawMiniMapLarge() {
+    G.rectangle('fill', [0, 0, 0, 0.8], [0, 0, W, H]);
+    const mw = 400, mh = 340;
+    const mx = W / 2 - mw / 2, my = H / 2 - mh / 2;
+    G.rectangle('fill', [0.05, 0.05, 0.05, 0.95], [mx - 4, my - 4, mw + 8, mh + 8]);
+    G.rectangle('line', '#666', [mx, my, mw, mh], { lineWidth: 1 });
+    G.print('#ffd700', '🗺 探索地图', [mx + mw / 2 - 60, my + 8], { font: '18px monospace' });
+    if (!game.roomGrid || Object.keys(game.roomGrid).length === 0) return;
+    let minX = 0, maxX = 0, minY = 0, maxY = 0;
+    for (const key in game.roomGrid) {
+        const r = game.roomGrid[key];
+        minX = Math.min(minX, r.x); maxX = Math.max(maxX, r.x);
+        minY = Math.min(minY, r.y); maxY = Math.max(maxY, r.y);
+    }
+    const gw = maxX - minX + 1, gh = maxY - minY + 1;
+    const gridW = Math.max(gw, 1), gridH = Math.max(gh, 1);
+    const cellS = Math.min(Math.floor((mw - 60) / (gridW + 2)), Math.floor((mh - 60) / (gridH + 2)), 45);
+    const ox = mx + (mw - gridW * cellS) / 2 + cellS / 2;
+    const oy = my + 50 + (mh - 60 - gridH * cellS) / 2 + cellS / 2;
+    for (const key in game.roomGrid) {
+        const r = game.roomGrid[key];
+        const rx = ox + (r.x - minX) * cellS, ry = oy + (r.y - minY) * cellS;
+        const color = r.isBossRoom ? '#f44' : r.visited ? (r.cleared ? '#5a5' : '#556') : '#333';
+        G.rectangle('fill', color, [rx - cellS / 2 + 3, ry - cellS / 2 + 3, cellS - 6, cellS - 6]);
+        if (!r.visited) continue;
+        if (r.isEntrance) {
+            const stageNode = STAGES.find(s => s.id === r.stageId);
+            const eLabel = stageNode ? stageNode.name : '入口';
+            G.print('#ff0', eLabel, [rx - cellS / 2 + 2, ry - cellS / 2], { font: '7px monospace' });
+        }
+        if (r.exits.up) { G.rectangle('fill', r.bridge && r.bridge.dir === 'up' ? '#48f' : '#888', [rx - 4, ry - cellS / 2, 8, 8]); }
+        if (r.exits.down) { G.rectangle('fill', r.bridge && r.bridge.dir === 'down' ? '#48f' : '#888', [rx - 4, ry + cellS / 2 - 8, 8, 8]); }
+        if (r.exits.left) { G.rectangle('fill', r.bridge && r.bridge.dir === 'left' ? '#48f' : '#888', [rx - cellS / 2, ry - 4, 8, 8]); }
+        if (r.exits.right) { G.rectangle('fill', r.bridge && r.bridge.dir === 'right' ? '#48f' : '#888', [rx + cellS / 2 - 8, ry - 4, 8, 8]); }
+    }
+    const prx = ox + (game.roomX - minX) * cellS, pry = oy + (game.roomY - minY) * cellS;
+    G.rectangle('fill', '#0f0', [prx - 5, pry - 5, 10, 10]);
+    const aliveCount = game.enemies.filter(e => e.alive).length;
+    const curStageRooms2 = Object.values(game.roomGrid).filter(r => r.stageId === game.curStageId);
+    const curStageCleared2 = curStageRooms2.filter(r => r.cleared).length;
+    const sdName = STAGES.find(s => s.id === game.curStageId)?.name || '';
+    G.print('#ccc', sdName + ' [' + game.roomX + ',' + game.roomY + ']  敌:' + aliveCount + '  清除:' + curStageCleared2 + '/' + curStageRooms2.length, [mx + mw / 2 - 150, my + mh - 28], { font: '10px monospace' });
+    G.print('#888', 'Esc / 点击关闭', [mx + mw / 2 - 50, my + mh - 14], { font: '9px monospace' });
 }

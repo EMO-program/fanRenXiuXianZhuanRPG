@@ -2,10 +2,10 @@ import { L, G, W, H, TB } from './engine.js';
 import { game } from './state.js';
 import { STAGES, SKILLS, DIFFICULTIES, TECHNIQUES, WORLD_MAP, KEY_ITEMS } from './config.js';
 import { maxHP, maxMana, doNtf, hitFX, spawnSwordFX, cir, ln } from './utils.js';
-import { spawnWave, doMeleeHit, defeatBoss, goToHubAfterBoss, applyChestReward, updateMoDaifu } from './combat.js';
+import { doMeleeHit, defeatBoss, goToHubAfterBoss, applyChestReward, updateMoDaifu, updateEnemyAI, killEnemy, getEnemySkin, initRooms, tryTransitRoom, checkRoomClear, isAtEdge, canTransitAny, getRoomKey, tryOpenChest } from './combat.js';
 import { enterCave, updateCave } from './garden.js';
 import { getEquipBonus } from './equipment.js';
-import { drawHL, drawEn, drawFX, drawUI, drawCave, drawEquipment, drawInventory, drawTitle } from './draw.js';
+import { drawHL, drawEn, drawFX, drawUI, drawCave, drawEquipment, drawInventory, drawTitle, drawMiniMap, drawMiniMapLarge, drawChests } from './draw.js';
 import { drawOrbitSwords, drawShop, drawHub, drawTribulation, drawPause, drawEvent, drawDialogue, drawTown, drawDebug } from './draw.js';
 import { updateEquipment } from './equipment.js';
 import { updateInventory, enterInventory } from './inventory.js';
@@ -70,18 +70,19 @@ function getCurrentMapChildren() {
 
 function startNewGame() {
     game.curS = 0; game.sWv = 0; game.totWv = 0; game.bSp = false; game.bDef = false; game.sClr = false; game.waveReady = false;
-    game.shieldT = 0; game.greatSwordT = 0; game.skillCDs = {}; game.tribPending = false; game.bossRushMode = false;
+    game.shieldT = 0; game.greatSwordT = 0; game.silverHandPending = false; game.skillCDs = {}; game.tribPending = false; game.bossRushMode = false;
+    game.roomGrid = {}; game.roomX = 0; game.roomY = 0; game.roomsFound = 0; game.roomsCleared = 0; game.miniMapOpen = false; game.bossRoomKey = null; game.bossRoomRevealed = false; game.transitCD = 0;
     game.enemies = []; game.bullets = []; game.particles = []; game.effects = []; game.lootDrops = []; game.orbitSwords = [];
     game.CL.realm = '炼气'; game.CL.stage = 1; game.CL.exp = 0; game.CL.expToNext = 60; game.CL.breakRdy = false;
     game.swCnt = 12; game.atkBuf = 0; game.psnCnt = 0; game.inventory = {}; game.bottleLiquid = 0; game.spiritStones = 0;
-    game.clearedStages = []; game.techLvs = {}; game.bossTechs = []; game.completedEvents = [];
+    game.clearedStages = []; game.unlockedStages = ['qxWaiMen']; game.techLvs = {}; game.bossTechs = []; game.completedEvents = [];
     game.curStageId = 'qxWaiMen'; game.mapSel = [0,0,0]; game.mapLevel = 0;
     game.townSel = 0;
     game.invScrollY = 0; game.shopScrollY = 0; game.hubScrollY = 0; game.titleScrollY = 0;
     for (const p of game.cavePlots) { p.planted = null; p.gr = 0; p.waterCooldown = 0; p.unlocked = game.cavePlots.indexOf(p) < 2; }
     game.HL.x = 400; game.HL.y = TB + 180;
     game.gameMode = 'battle'; game.hp = maxHP(); game.mana = maxMana();
-    spawnWave();
+    initRooms(game.curStageId);
 }
 
 function startStage(stageId) {
@@ -89,7 +90,8 @@ function startStage(stageId) {
     const sd = STAGES.find(s => s.id === stageId);
     game.curS = sd ? STAGES.indexOf(sd) : 0;
     game.sWv = 0; game.totWv = 0; game.bSp = false; game.bDef = false; game.sClr = false; game.waveReady = false;
-    game.shieldT = 0; game.greatSwordT = 0; game.skillCDs = {};
+    game.shieldT = 0; game.greatSwordT = 0; game.silverHandPending = false; game.skillCDs = {};
+    game.roomGrid = {}; game.roomX = 0; game.roomY = 0; game.roomsFound = 0; game.roomsCleared = 0; game.miniMapOpen = false; game.bossRoomKey = null; game.bossRoomRevealed = false; game.transitCD = 0;
     game.enemies = []; game.bullets = []; game.particles = []; game.effects = []; game.lootDrops = []; game.orbitSwords = [];
     game.HL.x = 400; game.HL.y = TB + 180;
     game.hp = maxHP(); game.mana = maxMana();
@@ -101,15 +103,15 @@ function startStage(stageId) {
         game.townSel = 0;
     } else {
         game.gameMode = 'battle';
-        spawnWave();
+        initRooms(stageId);
     }
 }
 
 export function getBossList() {
-    return STAGES.filter(s => s.boss).map(s => ({
-        id: s.id, name: s.boss.name, waveName: s.name,
-        hp: s.boss.hp, atk: s.boss.atk, size: s.boss.size, exp: s.boss.exp,
-        env: s.env, env2: s.env2, drops: s.boss.drops
+    return STAGES.filter(s => s.stage && s.stage.boss).map(s => ({
+        id: s.id, name: s.stage.boss.name, waveName: s.name,
+        hp: s.stage.boss.hp, atk: s.stage.boss.atk, size: s.stage.boss.size, exp: s.stage.boss.exp,
+        env: s.stage.env, env2: s.stage.env2, drops: s.stage.boss.drops
     }));
 }
 
@@ -118,7 +120,7 @@ function startBossStage(bossId) {
     if (!bossData) return;
     game.curStageId = bossId;
     game.sWv = 0; game.totWv = 0; game.bSp = false; game.bDef = false; game.sClr = false; game.waveReady = false;
-    game.shieldT = 0; game.greatSwordT = 0; game.skillCDs = {};
+    game.shieldT = 0; game.greatSwordT = 0; game.silverHandPending = false; game.skillCDs = {};
     game.enemies = []; game.bullets = []; game.particles = []; game.effects = []; game.lootDrops = []; game.orbitSwords = [];
     game.HL.x = 400; game.HL.y = TB + 180;
     game.hp = maxHP(); game.mana = maxMana();
@@ -174,6 +176,8 @@ L.load = () => {
     L.input.setAction('skill2', ['Digit2']);
     L.input.setAction('skill3', ['Digit3']);
     L.input.setAction('skill4', ['Digit4']);
+    L.input.setAction('skill5', ['Digit5']);
+    L.input.setAction('minimap', ['KeyM']);
 
     L.input.setAction('debug_toggle', ['Backquote']);
 
@@ -276,7 +280,7 @@ L.update = (dt) => {
             if (game.dialogueIdx >= game.dialogueLines.length) {
                 if (game.dialogueMode === 'pre_boss') {
                     const sd2 = STAGES.find(s => s.id === game.curStageId);
-                    const bp2 = sd2 ? sd2.boss : null;
+                    const bp2 = sd2 ? sd2.stage?.boss : null;
                     if (bp2) { game.enemies.push({ x: 400, y: TB + 60, size: bp2.size, hp: bp2.hp, maxHp: bp2.hp, atk: bp2.atk, alive: true, isBoss: true, name: bp2.name, exp: bp2.exp, tm: 0, tm2: 0, ph: 1, phDone: false }); }
                     game.gameMode = 'battle';
                     doNtf('⚠ BOSS降临：' + (bp2 ? bp2.name : '') + '！');
@@ -403,9 +407,10 @@ L.update = (dt) => {
             game.gameOver = false; game.curStageId = 'qxWaiMen'; game.curS = 0; game.sWv = 0; game.totWv = 0; game.bSp = false; game.bDef = false; game.sClr = false; game.waveReady = false;
             game.enemies = []; game.bullets = []; game.particles = []; game.effects = []; game.lootDrops = [];
             game.CL.realm = '炼气'; game.CL.stage = 1; game.CL.exp = 0; game.CL.expToNext = 60; game.CL.breakRdy = false;
-            game.swCnt = 12; game.atkBuf = 0; game.psnCnt = 0; game.shieldT = 0; game.greatSwordT = 0; game.skillCDs = {}; game.tribPending = false; game.inventory = {}; game.bottleLiquid = 0; game.spiritStones = 0; game.techLvs = {}; game.bossTechs = []; game.completedEvents = [];
+            game.swCnt = 12; game.atkBuf = 0; game.psnCnt = 0; game.shieldT = 0; game.greatSwordT = 0; game.silverHandPending = false; game.skillCDs = {}; game.tribPending = false; game.inventory = {}; game.bottleLiquid = 0; game.spiritStones = 0; game.techLvs = {}; game.bossTechs = []; game.completedEvents = []; game.clearedStages = []; game.unlockedStages = ['qxWaiMen'];
+            game.roomGrid = {}; game.roomX = 0; game.roomY = 0; game.roomsFound = 0; game.roomsCleared = 0; game.miniMapOpen = false; game.bossRoomKey = null; game.bossRoomRevealed = false; game.transitCD = 0;
             for (const p of game.cavePlots) { p.planted = null; p.gr = 0; p.waterCooldown = 0; p.unlocked = game.cavePlots.indexOf(p) < 2; }
-            spawnWave();
+            initRooms(game.curStageId);
         } else if (L.input.justPressed('garden_key')) {
             game.gameOver = false; game.hp = 1; game.mana = maxMana();
             game.diedEnterCave = true;
@@ -418,6 +423,7 @@ L.update = (dt) => {
     const eqDef = getEquipBonus().def;
 
     if (L.input.justPressed('menu_esc')) {
+        if (game.miniMapOpen) { game.miniMapOpen = false; return; }
         game.paused = true;
         game.pauseMenuSel = 0;
         return;
@@ -435,6 +441,10 @@ L.update = (dt) => {
         return;
     }
 
+    if (game.gameMode === 'battle' && L.input.justPressed('interact')) {
+        tryOpenChest();
+    }
+
     let dx = 0, dy = 0;
     if (L.input.isDown('left')) dx -= 1;
     if (L.input.isDown('right')) dx += 1;
@@ -445,8 +455,8 @@ L.update = (dt) => {
     if (game.HL.mv) {
         if (dx && dy) { const n = Math.sqrt(dx * dx + dy * dy); dx /= n; dy /= n; }
         game.HL.x += dx * game.HL.spd * tb.spdMul * dt; game.HL.y += dy * game.HL.spd * tb.spdMul * dt;
-        game.HL.x = Math.max(16, Math.min(W - 16, game.HL.x));
-        game.HL.y = Math.max(TB + 30, Math.min(H - 50, game.HL.y));
+        game.HL.x = Math.max(6, Math.min(W - 6, game.HL.x));
+        game.HL.y = Math.max(TB + 6, Math.min(H - 6, game.HL.y));
         game.HL.wA = Math.atan2(dy, dx);
     }
     const [mx, my] = L.mouse.getPosition();
@@ -454,6 +464,7 @@ L.update = (dt) => {
     a.tm += dt; a.cd = Math.max(0, a.cd - dt);
     game.mana = Math.min(maxMana(), game.mana + 3 * getEquipBonus().manaRegen * (1 + tb.manaMul) * dt);
     if (tb.regen > 0) game.hp = Math.min(maxHP(), game.hp + tb.regen * dt);
+    game.transitCD = Math.max(0, game.transitCD - dt);
     updateSkillTimers(dt);
     updateOrbitSwords(dt);
     initOrbitSwords();
@@ -462,16 +473,6 @@ L.update = (dt) => {
     if (game.psnCnt > 0) {
         game.psnCnt -= dt;
         for (const e of game.enemies) if (e.alive) { e.hp -= 4 * dt; if (e.hp <= 0) { e.alive = false; hitFX(e); } }
-    }
-    if (game.techLvs['moYiPoison']) {
-        const auraDmg = 4;
-        for (const e of game.enemies) {
-            if (!e.alive) continue;
-            if (Math.hypot(game.HL.x - e.x, game.HL.y - e.y) < 80) {
-                e.hp -= auraDmg * dt;
-                if (e.hp <= 0) { e.alive = false; hitFX(e); game.spiritStones += 1 + Math.floor(Math.random() * 2); game.CL.exp += 1 + Math.floor(Math.random() * 2); rollLoot(e.type, e.x, e.y); onEnemyKilled(); }
-            }
-        }
     }
 
     const atkDr = 0.28;
@@ -486,7 +487,14 @@ L.update = (dt) => {
     }
 
     if (L.input.isDown('shoot') && a.cd <= 0) {
-        if (game.mana < 5) { doNtf('法力不足！'); a.cd = 0.2; }
+        const [mxChk, myChk] = L.mouse.getPosition();
+        if (game.miniMapOpen) {
+            game.miniMapOpen = false;
+            a.cd = 0.2;
+        } else if (game.gameMode === 'battle' && mxChk > W - 130 && mxChk < W - 10 && myChk > TB + 40 && myChk < TB + 160) {
+            game.miniMapOpen = !game.miniMapOpen;
+            a.cd = 0.2;
+        } else if (game.mana < 5) { doNtf('法力不足！'); a.cd = 0.2; }
         else {
             a.st = 'attack'; a.atkT = 0; a.cd = 0.45; a.hit = false; game.mana -= 5;
             const sd = 130; a.swS = (game.HL.fA * 180 / Math.PI) - sd / 2; a.swL = sd;
@@ -496,6 +504,49 @@ L.update = (dt) => {
     if (L.input.justPressed('skill2')) castSkill('flyingSwords');
     if (L.input.justPressed('skill3')) castSkill('shield');
     if (L.input.justPressed('skill4')) castSkill('greatSword');
+    if (game.techLvs['modSilverHand'] && L.input.justPressed('skill5')) {
+        const cdId = 'silverHandTech';
+        const tech = TECHNIQUES.find(t => t.id === 'modSilverHand');
+        const lv = game.techLvs['modSilverHand'];
+        const tier = tech.tiers[lv - 1];
+        const manaCost = tier.val3 || 50;
+        if ((game.skillCDs[cdId] || 0) <= 0) {
+            if (game.mana < manaCost) {
+                doNtf('⚠ 法力不足！');
+            } else {
+                game.silverHandPending = true;
+                doNtf('🟣 魔银手就绪，点击鼠标瞬移');
+            }
+        }
+    }
+    if (game.silverHandPending && L.input.justPressed('shoot')) {
+        game.silverHandPending = false;
+        const tech = TECHNIQUES.find(t => t.id === 'modSilverHand');
+        const lv = game.techLvs['modSilverHand'];
+        const tier = tech.tiers[lv - 1];
+        const dmg = tier.val;
+        const poisonDps = tier.val2;
+        const manaCost = tier.val3 || 50;
+        const cd = tier.val4 || 10;
+        game.mana -= manaCost;
+        const [mx, my] = L.mouse.getPosition();
+        const fx = Math.max(16, Math.min(W - 16, mx));
+        const fy = Math.max(TB + 30, Math.min(H - 50, my));
+        game.HL.x = fx;
+        game.HL.y = fy;
+        game.effects.push({ x: fx, y: fy, tp: 'silverHand', life: 0.6, ml: 0.6, sz: 24 });
+        for (const e of game.enemies) {
+            if (!e.alive) continue;
+            if (Math.hypot(fx - e.x, fy - e.y) < 70) {
+                e.hp -= dmg;
+                e.poisonT = 2;
+                e.poisonDps = poisonDps;
+                hitFX({ x: e.x, y: e.y });
+                onPlayerDealDamage(dmg);
+            }
+        }
+        game.skillCDs['silverHandTech'] = cd;
+    }
     if (a.st === 'attack' && !a.hit && a.atkT >= 0.07) doMeleeHit();
 
     if (game.sClr && L.input.justPressed('restart')) { game.gameMode = 'hub'; game.hubSel = 0; }
@@ -505,6 +556,14 @@ L.update = (dt) => {
         const edx = game.HL.x - e.x, edy = game.HL.y - e.y, ed = Math.hypot(edx, edy);
         e.tm = (e.tm || 0) + dt;
         e.atkT = Math.max(0, (e.atkT || 0) - dt);
+        if (e.poisonT > 0) {
+            e.poisonT -= dt;
+            e.hp -= (e.poisonDps || 4) * dt;
+            if (e.hp <= 0) {
+                if (e.isBoss) { defeatBoss(e); }
+                else { killEnemy(e); }
+            }
+        }
 
         if (e.isBoss) {
             if (e.name.includes('墨大夫')) {
@@ -575,7 +634,10 @@ L.update = (dt) => {
             continue;
         }
 
-        if (e.type === '弓手' || e.role === 'ranged') {
+        const isPatrolling = updateEnemyAI(e, dt, eqDef, tb);
+        if (isPatrolling) continue;
+
+        if (e.role === 'ranged') {
             e.atkCd = Math.max(0, (e.atkCd || 0) - dt);
             if (ed > 120) {
                 if (ed > 0) { e.x += edx / ed * e.spd * dt; e.y += edy / ed * e.spd * dt; }
@@ -587,13 +649,13 @@ L.update = (dt) => {
                 game.bullets.push({ x: e.x, y: e.y, vx: Math.cos(ba) * 200, vy: Math.sin(ba) * 200, life: 2.5, type: 'arrow' });
             }
             if (ed < e.size + 10 && game.HL.invT <= 0) {
-                if (game.shieldT <= 0) { game.hp -= Math.max(1, 3 - eqDef - tb.flatDef); game.HL.invT = 0.5; e.atkT = 0.2; }
+                if (game.shieldT <= 0) { game.hp -= Math.max(1, e.atk - eqDef - tb.flatDef); game.HL.invT = 0.5; e.atkT = 0.2; }
                 hitFX({ x: game.HL.x, y: game.HL.y });
             }
             continue;
         }
 
-        if (e.type === '冲锋' || e.role === 'charger') {
+        if (e.role === 'charger') {
             e.chCd = Math.max(0, (e.chCd || 0) - dt);
             if (!e.charging && e.chCd <= 0 && ed < 200) {
                 e.charging = true; e.chT = 0; e.atkT = 0.25; e.chSpd = 300 + game.sWv * 30;
@@ -608,14 +670,14 @@ L.update = (dt) => {
                 e.x += edx / ed * e.spd * dt; e.y += edy / ed * e.spd * dt;
             }
             if (ed < e.size + 10 && game.HL.invT <= 0) {
-                if (game.shieldT <= 0) { game.hp -= Math.max(1, 7 - eqDef - tb.flatDef); game.HL.invT = 0.5; e.atkT = 0.2; }
+                if (game.shieldT <= 0) { game.hp -= Math.max(1, e.atk - eqDef - tb.flatDef); game.HL.invT = 0.5; e.atkT = 0.2; }
                 hitFX({ x: game.HL.x, y: game.HL.y });
                 if (e.charging) { e.charging = false; e.chCd = 2; }
             }
             continue;
         }
 
-        if (e.type === '召唤师' || e.role === 'summoner') {
+        if (e.role === 'summoner') {
             e.sumCd = Math.max(0, (e.sumCd || 0) - dt);
             if (ed > 200) {
                 if (ed > 0) { e.x += edx / ed * e.spd * dt; e.y += edy / ed * e.spd * dt; }
@@ -625,10 +687,12 @@ L.update = (dt) => {
             if (e.sumCd <= 0) {
                 e.sumCd = 4 + Math.random() * 2;
                 const ax = e.x + (Math.random() - 0.5) * 60, ay = e.y + (Math.random() - 0.5) * 40;
-                game.enemies.push({ x: ax, y: ay, type: '普通', size: 6, hp: 2, alive: true, spd: 50 + game.sWv * 10, tm: 0 });
+                const region = e.region || 'tianNan';
+                const skin = getEnemySkin(region, 'melee');
+                game.enemies.push({ x: ax, y: ay, type: skin.type, skin, role: 'melee', size: 6, hp: 3, maxHp: 3, alive: true, spd: 50 + game.sWv * 10, tm: 0, atkT: 0, atk: 2, aggroRange: 120, patrolRange: 40, patrolCx: ax, patrolCy: ay, patrolAngle: Math.random() * Math.PI * 2, state: 'chase', elite: false, region });
             }
             if (ed < e.size + 10 && game.HL.invT <= 0) {
-                if (game.shieldT <= 0) { game.hp -= Math.max(1, 4 - eqDef - tb.flatDef); game.HL.invT = 0.5; e.atkT = 0.2; }
+                if (game.shieldT <= 0) { game.hp -= Math.max(1, e.atk - eqDef - tb.flatDef); game.HL.invT = 0.5; e.atkT = 0.2; }
                 hitFX({ x: game.HL.x, y: game.HL.y });
             }
             continue;
@@ -636,17 +700,15 @@ L.update = (dt) => {
 
         if (ed > 0) { const spd = e.spd || 40; e.x += edx / ed * spd * dt; e.y += edy / ed * spd * dt; }
         if (Math.hypot(game.HL.x - e.x, game.HL.y - e.y) < e.size + 10 && game.HL.invT <= 0) {
-            if (game.shieldT <= 0) { game.hp -= Math.max(1, 5 - eqDef - tb.flatDef); game.HL.invT = 0.5; e.atkT = 0.2; }
+            if (game.shieldT <= 0) { game.hp -= Math.max(1, e.atk - eqDef - tb.flatDef); game.HL.invT = 0.5; e.atkT = 0.2; }
             hitFX({ x: game.HL.x, y: game.HL.y });
             for (let i = 0; i < 3; i++) game.particles.push({ x: game.HL.x, y: game.HL.y, vx: (Math.random() - 0.5) * 80, vy: (Math.random() - 0.5) * 80, life: 0.3 });
         }
     }
     game.HL.invT = Math.max(0, game.HL.invT - dt);
-    const aliveEnemies = game.enemies.filter(e => e.alive);
-    if (aliveEnemies.length === 0 && !game.sClr) {
-        if (game.bSp && game.bDef) { game.sClr = true; }
-        else { spawnWave(); }
-    }
+    checkRoomClear();
+    const edge = isAtEdge();
+    if (edge && !game.sClr) tryTransitRoom(edge);
 
     for (let i = game.bullets.length - 1; i >= 0; i--) {
         const b = game.bullets[i];
@@ -656,7 +718,7 @@ L.update = (dt) => {
                 if (!ee.alive) continue;
                 if (Math.hypot(b.x - ee.x, b.y - ee.y) < 30) {
                     ee.hp -= 10; hitFX({ x: ee.x, y: ee.y });
-                    if (ee.hp <= 0) { if (ee.isBoss) defeatBoss(ee); else { ee.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); game.CL.exp += 1 + Math.floor(Math.random() * 2); rollLoot(ee.type, ee.x, ee.y); onEnemyKilled(); } }
+                    if (ee.hp <= 0) { if (ee.isBoss) defeatBoss(ee); else killEnemy(ee); }
                 }
             }
             for (let j = 0; j < 6; j++) {
@@ -673,12 +735,12 @@ L.update = (dt) => {
                 if (!e.alive) continue;
                 if (Math.hypot(b.x - e.x, b.y - e.y) < e.size + 8) {
                     e.hp -= b.dmg || 30; hitFX({ x: e.x, y: e.y }); onPlayerDealDamage(b.dmg || 30);
-                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else { e.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); game.CL.exp += 1 + Math.floor(Math.random() * 2); rollLoot(e.type, e.x, e.y); onEnemyKilled(); } }
+                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else killEnemy(e); }
                     for (const ee of game.enemies) {
                         if (!ee.alive || ee === e) continue;
                         if (Math.hypot(b.x - ee.x, b.y - ee.y) < 50) {
                             ee.hp -= 10; hitFX({ x: ee.x, y: ee.y });
-                            if (ee.hp <= 0) { if (ee.isBoss) defeatBoss(ee); else { ee.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); game.CL.exp += 1 + Math.floor(Math.random() * 2); rollLoot(ee.type, ee.x, ee.y); onEnemyKilled(); } }
+                            if (ee.hp <= 0) { if (ee.isBoss) defeatBoss(ee); else killEnemy(ee); }
                         }
                     }
                     for (let j = 0; j < 10; j++) {
@@ -704,7 +766,7 @@ L.update = (dt) => {
                 if (!e.alive) continue;
                 if (Math.hypot(b.x - e.x, b.y - e.y) < e.size + hitR) {
                     e.hp -= b.dmg || 60; hitFX({ x: e.x, y: e.y }); onPlayerDealDamage(b.dmg || 60);
-                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else { e.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); game.CL.exp += 1 + Math.floor(Math.random() * 2); rollLoot(e.type, e.x, e.y); onEnemyKilled(); } }
+                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else killEnemy(e); }
                 }
             }
             continue;
@@ -715,7 +777,7 @@ L.update = (dt) => {
                 if (!e.alive) continue;
                 if (Math.hypot(b.x - e.x, b.y - e.y) < e.size + 8) {
                     e.hp -= b.dmg || 20; hitFX({ x: e.x, y: e.y }); onPlayerDealDamage(b.dmg || 20);
-                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else { e.alive = false; game.spiritStones += 1 + Math.floor(Math.random() * 2); game.CL.exp += 1 + Math.floor(Math.random() * 2); rollLoot(e.type, e.x, e.y); onEnemyKilled(); } }
+                    if (e.hp <= 0) { if (e.isBoss) defeatBoss(e); else killEnemy(e); }
                     hit = true; break;
                 }
             }
@@ -880,16 +942,25 @@ L.draw = () => {
         else { cir(b.x, b.y, 4, '#ff4040'); cir(b.x, b.y, 2, '#ff8080'); }
     }
     for (const e of game.enemies) { if (!e.alive) continue; drawEn(e); }
+    drawChests();
     drawFX();
     drawOrbitSwords();
     if (!game.gameOver) drawHL(game.HL.x, game.HL.y);
+    if (L.input.justPressed('minimap')) game.miniMapOpen = !game.miniMapOpen;
     drawUI();
+    drawMiniMap();
+    if (game.miniMapOpen) drawMiniMapLarge();
     if (game.shieldT > 0) { G.circle('line', 'rgba(255,215,0,0.5)', [game.HL.x, game.HL.y], 18 + Math.sin(game.bottleGlowT * 8) * 2, { lineWidth: 2.5 }); }
     let skTxt = '';
     for (const sk of SKILLS) {
         const cd = game.skillCDs[sk.id] || 0;
         const cl = cd > 0 ? '#f66' : game.mana >= sk.mana ? '#0f0' : '#666';
         skTxt += sk.name + '[' + sk.keys[0].replace('Digit','') + '] ';
+        if (cd > 0) skTxt += cd.toFixed(1) + 's ';
+    }
+    if (game.techLvs['modSilverHand']) {
+        const cd = game.skillCDs['silverHandTech'] || 0;
+        skTxt += '魔银手[5] ';
         if (cd > 0) skTxt += cd.toFixed(1) + 's ';
     }
     G.print('#aaa', skTxt, [W / 2 - 180, H - 48], { font: '10px monospace' });

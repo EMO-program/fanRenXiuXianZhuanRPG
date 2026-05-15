@@ -16,7 +16,7 @@ export function getTechBonus() {
         else if (t.id === 'elephantArmor') b.flatDef += tier.val;
         else if (t.id === 'azureSword') b.dmgMul += tier.val;
         else if (t.id === 'daYan') b.manaMul += tier.val;
-        else if (t.id === 'moYiPoison') b.regen = (b.regen || 0) + tier.val;
+        else if (t.id === 'modSilverHand') {}
         else if (t.id === 'moJiaoBlood') { b.regen = (b.regen || 0) + tier.val; b.dmgMul += (tier.val2 || 0); }
         else if (t.id === 'wangChanSoul') b.dmgMul += (tier.val2 || 0);
         else if (t.id === 'fengXiWing') { b.spdMul += tier.val; b.dmgMul += (tier.val2 || 0); }
